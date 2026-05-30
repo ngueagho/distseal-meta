@@ -12,3 +12,7 @@ tensorboard
 onnx
 onnxsim
 onnxruntime
+
+# CRYSTAL-OTP
+pycryptodome>=3.20.0
+reedsolo>=1.7.0
