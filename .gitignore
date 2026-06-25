@@ -5,3 +5,8 @@ __pycache__/
 
 /outputs
 /output
+
+# CRYSTAL-OTP: secrets, jamais en clair dans le repo
+/keys/
+*.bin
+crystal_sse_cache/

@@ -12,6 +12,9 @@ Official implementation of DistSeal, a unified framework for latent watermarking
 [ [Arxiv](https://arxiv.org/abs/2601.16140) ]
 [ [Blog](https://ai.meta.com/research/publications/distilling-latent-space-watermarkers-into-generative-image-models/) ]
 [ [Meta Seal](https://facebookresearch.github.io/meta-seal/) ]
+
+> **Branche `crystal`** : extension OTP/HMAC apportant des garanties cryptographiques.
+> Voir [`docs/crystal.md`](docs/crystal.md) pour la doc et `distseal/crystal/` pour le code.
 </div>
 <p align="center">
     <img src="assets/distseal.png" alt="Latent Watermarking" width="100%"/>
