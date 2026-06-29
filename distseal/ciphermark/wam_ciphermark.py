@@ -1,11 +1,11 @@
 """
-Orchestrateur CRYSTAL-OTP.
+Orchestrateur CipherMark.
 
 Ce module emballe un `distseal.models.wam.Wam` existant et lui ajoute:
 
   * la construction du champ temoin Omega via OTP + HMAC,
   * la boucle de point fixe (h_pred <-> h_real),
-  * la verification via CrystalVerifier.
+  * la verification via CipherMarkVerifier.
 
 L'idee est de ne PAS toucher au Wam pour ne pas casser les checkpoints
 existants. On lui passe juste un msg = Omega_bits pre-calcule.
@@ -21,31 +21,31 @@ import torch
 from torch import nn
 
 from .crypto import bytes_to_bits, random_seed
-from .equation import CrystalVerifier, VerificationReport
+from .equation import CipherMarkVerifier, VerificationReport
 from .phash import PerceptualHash
 from .witness import WitnessConfig, WitnessField
 
 
 @dataclass
-class CrystalKeys:
+class CipherMarkKeys:
     s_master: bytes
     k_secret: bytes
 
     @staticmethod
-    def random() -> "CrystalKeys":
-        return CrystalKeys(s_master=random_seed(32), k_secret=random_seed(32))
+    def random() -> "CipherMarkKeys":
+        return CipherMarkKeys(s_master=random_seed(32), k_secret=random_seed(32))
 
     @staticmethod
-    def from_files(s_master_path: str, k_secret_path: str) -> "CrystalKeys":
+    def from_files(s_master_path: str, k_secret_path: str) -> "CipherMarkKeys":
         with open(s_master_path, "rb") as f:
             s = f.read()
         with open(k_secret_path, "rb") as f:
             k = f.read()
-        return CrystalKeys(s_master=s, k_secret=k)
+        return CipherMarkKeys(s_master=s, k_secret=k)
 
 
 @dataclass
-class CrystalConfig:
+class CipherMarkConfig:
     n_bits: int = 256
     block_size: int = 16
     max_fixed_point_iters: int = 3
@@ -53,7 +53,7 @@ class CrystalConfig:
     nonce_start: int = 0
 
 
-class CrystalWam(nn.Module):
+class CipherMarkWam(nn.Module):
     """
     Wrapper autour de Wam.
 
@@ -61,7 +61,7 @@ class CrystalWam(nn.Module):
 
         wam = build_my_wam(...)
         phash = PerceptualHash(n_bits=256)
-        crystal = CrystalWam(wam, phash, CrystalKeys.random())
+        crystal = CipherMarkWam(wam, phash, CipherMarkKeys.random())
 
         out = crystal.embed(imgs)              # genere les images watermarkees
         report = crystal.verify(out["imgs_w"], out["image_ids"])
@@ -71,14 +71,14 @@ class CrystalWam(nn.Module):
         self,
         wam: nn.Module,
         phash: PerceptualHash,
-        keys: CrystalKeys,
-        cfg: Optional[CrystalConfig] = None,
+        keys: CipherMarkKeys,
+        cfg: Optional[CipherMarkConfig] = None,
     ):
         super().__init__()
         self.wam = wam
         self.phash = phash
         self.keys = keys
-        self.cfg = cfg or CrystalConfig()
+        self.cfg = cfg or CipherMarkConfig()
         self.witness = WitnessField(
             s_master=keys.s_master,
             k_secret=keys.k_secret,
@@ -87,7 +87,7 @@ class CrystalWam(nn.Module):
                 block_size=self.cfg.block_size,
             ),
         )
-        self.verifier = CrystalVerifier(self.witness)
+        self.verifier = CipherMarkVerifier(self.witness)
         self._next_image_id = self.cfg.nonce_start
 
     # ------------------------------------------------------------- helpers --

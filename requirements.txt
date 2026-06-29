@@ -13,6 +13,6 @@ onnx
 onnxsim
 onnxruntime
 
-# CRYSTAL-OTP
+# CipherMark
 pycryptodome>=3.20.0
 reedsolo>=1.7.0

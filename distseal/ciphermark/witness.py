@@ -20,7 +20,7 @@ from . import crypto
 class WitnessConfig:
     n_bits: int = 256                # taille de Omega
     block_size: int = 16             # bits par sample gaussien (pour SSE)
-    info_label: bytes = b"crystal-otp/v1/omega"
+    info_label: bytes = b"ciphermark/v1/omega"
 
 
 class WitnessField:

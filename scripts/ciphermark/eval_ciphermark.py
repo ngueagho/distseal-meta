@@ -1,12 +1,12 @@
 """
-Script d'evaluation rapide de CRYSTAL-OTP.
+Script d'evaluation rapide de CipherMark.
 
 Ce script ne charge PAS le Wam complet (qui demande les checkpoints DCAE
 + extracteur entraines). Il fait une evaluation end-to-end de la chaine
-crypto (OWF + Equation Crystal) + du PHash sur les 11 distorsions usuelles.
+crypto (OWF + Equation CipherMark) + du PHash sur les 11 distorsions usuelles.
 
 Usage:
-    python -m scripts.crystal.eval_crystal --n 50 --keys-dir ./keys
+    python -m scripts.ciphermark.eval_ciphermark --n 50 --keys-dir ./keys
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from distseal.crystal import (
-    CrystalKeys,
+from distseal.ciphermark import (
+    CipherMarkKeys,
     PerceptualHash,
     WitnessConfig,
     WitnessField,
-    CrystalVerifier,
+    CipherMarkVerifier,
     hamming_stability,
 )
 
@@ -111,19 +111,19 @@ def main() -> int:
     device = torch.device(args.device)
 
     if args.keys_dir:
-        keys = CrystalKeys.from_files(
+        keys = CipherMarkKeys.from_files(
             os.path.join(args.keys_dir, "s_master.bin"),
             os.path.join(args.keys_dir, "k_secret.bin"),
         )
     else:
-        keys = CrystalKeys.random()
+        keys = CipherMarkKeys.random()
         print("(cles ephemeres -- utiliser --keys-dir pour des cles persistantes)")
 
     # phash + witness
     phash = PerceptualHash(n_bits=args.n_bits).to(device)
     witness = WitnessField(keys.s_master, keys.k_secret,
                            WitnessConfig(n_bits=args.n_bits))
-    verifier = CrystalVerifier(witness)
+    verifier = CipherMarkVerifier(witness)
 
     # echantillon synthetique: images aleatoires douces (degrade + gaussien)
     torch.manual_seed(0)
@@ -141,7 +141,7 @@ def main() -> int:
         sims = [hamming_stability(hashes_id[i], h_d[i]) for i in range(args.n)]
         print(f"  {name:14s}  similarity = {np.mean(sims):.4f} +/- {np.std(sims):.4f}")
 
-    print("\nPhase 2 -- Equation Crystal (round-trip + replay)")
+    print("\nPhase 2 -- Equation CipherMark (round-trip + replay)")
     print("-" * 60)
     # On simule un round-trip parfait: Omega(h) -> verify(h) doit etre OK.
     correct = 0

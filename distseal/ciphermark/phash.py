@@ -1,5 +1,5 @@
 """
-Hash perceptuel "crypto-friendly" pour CRYSTAL-OTP.
+Hash perceptuel "crypto-friendly" pour CipherMark.
 
 Idee: extraire des features stables avec DINOv2 (ou un fallback rapide), les
 projeter sur des hyperplans aleatoires fixes (LSH) -> bits stables, puis

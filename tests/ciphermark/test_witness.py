@@ -1,7 +1,7 @@
 import numpy as np
 
-from distseal.crystal import crypto
-from distseal.crystal.witness import WitnessConfig, WitnessField
+from distseal.ciphermark import crypto
+from distseal.ciphermark.witness import WitnessConfig, WitnessField
 
 
 def _make_wf(n_bits=256):

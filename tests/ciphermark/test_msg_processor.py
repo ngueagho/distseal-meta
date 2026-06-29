@@ -1,11 +1,11 @@
 import numpy as np
 import torch
 
-from distseal.crystal.msg_processor import CrystalMsgProcessor
+from distseal.ciphermark.msg_processor import CipherMarkMsgProcessor
 
 
 def test_shape_preserved():
-    proc = CrystalMsgProcessor(nbits=256, hidden_size=128, msg_mult=0.5)
+    proc = CipherMarkMsgProcessor(nbits=256, hidden_size=128, msg_mult=0.5)
     z = torch.randn(2, 128, 8, 8)
     msg = torch.randint(0, 2, (2, 256))
     z_w = proc(z, msg)
@@ -13,7 +13,7 @@ def test_shape_preserved():
 
 
 def test_zero_msg_repro():
-    proc = CrystalMsgProcessor(nbits=256, hidden_size=64, msg_mult=1.0)
+    proc = CipherMarkMsgProcessor(nbits=256, hidden_size=64, msg_mult=1.0)
     z = torch.randn(1, 64, 4, 4)
     msg = torch.zeros(1, 256, dtype=torch.int64)
     z_w1 = proc(z, msg)
@@ -22,7 +22,7 @@ def test_zero_msg_repro():
 
 
 def test_different_msg_diff_output():
-    proc = CrystalMsgProcessor(nbits=256, hidden_size=64, msg_mult=1.0)
+    proc = CipherMarkMsgProcessor(nbits=256, hidden_size=64, msg_mult=1.0)
     z = torch.zeros(1, 64, 4, 4)
     msg1 = torch.zeros(1, 256, dtype=torch.int64)
     msg2 = torch.ones(1, 256, dtype=torch.int64)

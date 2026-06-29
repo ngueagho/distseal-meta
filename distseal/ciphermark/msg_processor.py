@@ -9,8 +9,8 @@ sous-espace stable.
 
 NOTE: pour rester compatible avec le code existant, `msg` est ici un
 tenseur de bits (B, K) qui represente Omega_bits (champ temoin pre-calcule
-par CrystalWam). On NE redirige PAS le tirage aleatoire vers OTP ici --
-c'est le wrapper CrystalWam qui s'occupe de tout le crypto.
+par CipherMarkWam). On NE redirige PAS le tirage aleatoire vers OTP ici --
+c'est le wrapper CipherMarkWam qui s'occupe de tout le crypto.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from .crypto import bits_to_gaussian
 from .stable_subspace import LatentProjector
 
 
-class CrystalMsgProcessor(nn.Module):
+class CipherMarkMsgProcessor(nn.Module):
     """
     Args:
         nbits:        nombre de bits de Omega (typiquement 256)
@@ -46,7 +46,7 @@ class CrystalMsgProcessor(nn.Module):
     ):
         super().__init__()
         if nbits <= 0:
-            raise ValueError("CrystalMsgProcessor requiert nbits > 0")
+            raise ValueError("CipherMarkMsgProcessor requiert nbits > 0")
         if nbits % block_size != 0:
             raise ValueError(
                 f"nbits ({nbits}) doit etre multiple de block_size ({block_size})"
@@ -69,7 +69,7 @@ class CrystalMsgProcessor(nn.Module):
 
         # agg additif uniquement (le concat n'a pas de sens crypto)
         if msg_agg != "add":
-            raise ValueError("CrystalMsgProcessor: seul msg_agg='add' supporte")
+            raise ValueError("CipherMarkMsgProcessor: seul msg_agg='add' supporte")
         self.msg_agg = msg_agg
 
         # interface de compat: msg_type est tjs binary
@@ -80,7 +80,7 @@ class CrystalMsgProcessor(nn.Module):
 
     def get_random_msg(self, bsz: int = 1, nb_repetitions: int = 1) -> torch.Tensor:
         """
-        Pour la compatibilite. En vrai, CrystalWam construira un msg avec
+        Pour la compatibilite. En vrai, CipherMarkWam construira un msg avec
         OTP, mais l'entrainement standard fait des tirages aleatoires.
         """
         if nb_repetitions != 1:
@@ -138,7 +138,7 @@ class CrystalMsgProcessor(nn.Module):
         delta = self.proj.embed_from_coords(coords_grid, (B, C, H, W))
 
         if verbose:
-            print(f"[crystal-msg] delta std={delta.std().item():.4f}, "
+            print(f"[ciphermark-msg] delta std={delta.std().item():.4f}, "
                   f"latents std={latents.std().item():.4f}")
 
         # 4) injection additive

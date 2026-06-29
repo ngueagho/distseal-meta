@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from distseal.crystal import crypto
+from distseal.ciphermark import crypto
 
 
 def test_hmac_deterministe():

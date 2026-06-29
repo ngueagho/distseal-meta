@@ -1,5 +1,5 @@
 """
-Primitives crypto pour CRYSTAL-OTP.
+Primitives crypto pour CipherMark.
 
 On s'appuie autant que possible sur pycryptodome (ChaCha20, AES) et sur la
 stdlib (hmac, hashlib). Si pycryptodome n'est pas dispo on bascule sur un

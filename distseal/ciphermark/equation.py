@@ -1,5 +1,5 @@
 """
-Crystal Equation: verification cryptographique d'une image observee.
+CipherMark Equation: verification cryptographique d'une image observee.
 
     Omega_obs  XOR  PRG(s_master, nonce)   ==  HMAC(K_secret, h_obs) ?
 
@@ -100,7 +100,7 @@ def _logaddexp(a: float, b: float) -> float:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class CrystalThresholds:
+class CipherMarkThresholds:
     """Seuils par defaut (fraction de bits errones)."""
     authentic: float = 0.10     # <= 10% d'erreur -> authentique
     light: float = 0.25         # 10-25% -> distorsion legere
@@ -108,18 +108,18 @@ class CrystalThresholds:
     # > 0.40 -> non-watermarkee
 
 
-class CrystalVerifier:
+class CipherMarkVerifier:
     """
-    Verifie l'equation Crystal et produit un verdict + p-value.
+    Verifie l'equation CipherMark et produit un verdict + p-value.
     """
 
     def __init__(
         self,
         witness: WitnessField,
-        thresholds: Optional[CrystalThresholds] = None,
+        thresholds: Optional[CipherMarkThresholds] = None,
     ):
         self.witness = witness
-        self.th = thresholds or CrystalThresholds()
+        self.th = thresholds or CipherMarkThresholds()
 
     def verify(
         self,

@@ -2,7 +2,7 @@
 Genere une paire (s_master, k_secret) et l'ecrit sur le disque.
 
 Usage:
-    python -m scripts.crystal.gen_keys --out-dir ./keys
+    python -m scripts.ciphermark.gen_keys --out-dir ./keys
 
 ATTENTION: ne pas committer les fichiers generes.
 """
@@ -10,7 +10,7 @@ ATTENTION: ne pas committer les fichiers generes.
 import argparse
 import os
 
-from distseal.crystal.crypto import random_seed
+from distseal.ciphermark.crypto import random_seed
 
 
 def main() -> int:

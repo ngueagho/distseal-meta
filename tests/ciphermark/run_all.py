@@ -5,10 +5,10 @@ import traceback
 
 
 MODULES = [
-    "tests.crystal.test_crypto",
-    "tests.crystal.test_witness",
-    "tests.crystal.test_equation",
-    "tests.crystal.test_msg_processor",
+    "tests.ciphermark.test_crypto",
+    "tests.ciphermark.test_witness",
+    "tests.ciphermark.test_equation",
+    "tests.ciphermark.test_msg_processor",
 ]
 
 

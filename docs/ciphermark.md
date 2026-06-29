@@ -1,4 +1,4 @@
-# CRYSTAL-OTP
+# CipherMark
 
 Extension cryptographique de DistSeal pour tatouer les modeles generatifs avec
 garanties de type "one-time pad". Voir le memoire pour la theorie complete.
@@ -20,7 +20,7 @@ garanties de type "one-time pad". Voir le memoire pour la theorie complete.
                           |
                           v
            +-----------------------------+
-           |  CrystalMsgProcessor        |
+           |  CipherMarkMsgProcessor        |
            |  bits -> gaussien -> SSE    |
            +-----------------------------+
                           |
@@ -32,25 +32,25 @@ garanties de type "one-time pad". Voir le memoire pour la theorie complete.
 
 | fichier                                      | role                                            |
 | -------------------------------------------- | ----------------------------------------------- |
-| `distseal/crystal/crypto.py`                 | HMAC-SHA256, ChaCha20, HKDF, bits<->gaussien    |
-| `distseal/crystal/phash.py`                  | hash perceptuel DINOv2 + LSH + Reed-Solomon     |
-| `distseal/crystal/witness.py`                | construction et verification de Omega           |
-| `distseal/crystal/stable_subspace.py`        | Hessien + Lanczos + projecteur Pi_stable        |
-| `distseal/crystal/equation.py`               | equation Crystal + verdict + p-value            |
-| `distseal/crystal/msg_processor.py`          | drop-in pour `MsgProcessor`                     |
-| `distseal/crystal/wam_crystal.py`            | orchestrateur + boucle de point fixe            |
+| `distseal/ciphermark/crypto.py`                 | HMAC-SHA256, ChaCha20, HKDF, bits<->gaussien    |
+| `distseal/ciphermark/phash.py`                  | hash perceptuel DINOv2 + LSH + Reed-Solomon     |
+| `distseal/ciphermark/witness.py`                | construction et verification de Omega           |
+| `distseal/ciphermark/stable_subspace.py`        | Hessien + Lanczos + projecteur Pi_stable        |
+| `distseal/ciphermark/equation.py`               | equation CipherMark + verdict + p-value            |
+| `distseal/ciphermark/msg_processor.py`          | drop-in pour `MsgProcessor`                     |
+| `distseal/ciphermark/wam_ciphermark.py`            | orchestrateur + boucle de point fixe            |
 
 ## Quickstart
 
 ```bash
 # 1) generer une paire de cles
-python -m scripts.crystal.gen_keys --out-dir ./keys
+python -m scripts.ciphermark.gen_keys --out-dir ./keys
 
 # 2) test bout-a-bout (sans modele lourd)
-python -m scripts.crystal.eval_crystal --n 20 --keys-dir ./keys
+python -m scripts.ciphermark.eval_ciphermark --n 20 --keys-dir ./keys
 
 # 3) tests unitaires
-PYTHONPATH=. python -m tests.crystal.run_all
+PYTHONPATH=. python -m tests.ciphermark.run_all
 ```
 
 ## Garanties

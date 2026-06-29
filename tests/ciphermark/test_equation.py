@@ -1,7 +1,7 @@
 import numpy as np
 
-from distseal.crystal.witness import WitnessConfig, WitnessField
-from distseal.crystal.equation import CrystalVerifier, Verdict, binomial_pvalue
+from distseal.ciphermark.witness import WitnessConfig, WitnessField
+from distseal.ciphermark.equation import CipherMarkVerifier, Verdict, binomial_pvalue
 
 
 def test_pvalue_extremes():
@@ -17,7 +17,7 @@ def test_verdicts():
     s = b"\x55" * 32
     k = b"\x66" * 32
     wf = WitnessField(s, k, WitnessConfig(n_bits=256))
-    v = CrystalVerifier(wf)
+    v = CipherMarkVerifier(wf)
     h = b"\x77" * 32
 
     omega = wf.build_omega(h, image_id=3)
