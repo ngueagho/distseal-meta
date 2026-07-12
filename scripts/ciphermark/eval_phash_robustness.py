@@ -98,6 +98,14 @@ def byte_errors(bits_a: np.ndarray, bits_b: np.ndarray) -> int:
     return int(np.sum(ba != bb))
 
 
+def hash_batched(phash, imgs: torch.Tensor, bs: int = 32) -> np.ndarray:
+    """Hash par lots pour tenir en memoire sur les gros corpus."""
+    out = []
+    for i in range(0, imgs.shape[0], bs):
+        out.append(phash(imgs[i:i + bs]).cpu().numpy())
+    return np.concatenate(out, axis=0)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=50)
@@ -133,7 +141,7 @@ def main() -> int:
     print(f"\n[phash-eval] n={n} ({src}), n_bits={args.n_bits}, "
           f"capacite RS = {rs_capacity} octets\n")
 
-    h_ref = phash(base).cpu().numpy()
+    h_ref = hash_batched(phash, base)
 
     # ------------------------------------------------------------- phase 1
     print("Phase 1 -- canal h : flips et recuperabilite par distorsion")
@@ -145,7 +153,7 @@ def main() -> int:
     hash_ok = {}   # name -> bool array (n,)
     for name, fn in ALL_DISTORTIONS.items():
         with torch.no_grad():
-            h_d = phash(fn(base.clone())).cpu().numpy()
+            h_d = hash_batched(phash, fn(base.clone()))
         flips = (h_ref != h_d).sum(axis=1)
         octets = np.array([byte_errors(h_ref[i], h_d[i]) for i in range(n)])
         ok = octets <= rs_capacity
