@@ -385,3 +385,22 @@ Trois configurations croisées sur les mêmes 28 images (CSV dans `results/`) :
 **Périmètre de viabilité démontré** : compression (jpeg-80 100 %, jpeg-50 71 %), photométrie (100 %), bruit (86 %) — l'écrasante majorité des transformations qu'une image subit en ligne. **Falaise résiduelle** : crops sévères, rotations, combinées — même zone faible que DistSeal (84 % en combiné), mais en tout-ou-rien chez nous.
 
 Reproductibilité : le run DCT Colab reproduit exactement les chiffres locaux (1,07 flip moyen sur jpeg-80 dans les deux environnements).
+
+### Résultats à 97 images (local, 12 juillet 2026) — la leçon d'humilité statistique
+
+Corpus étendu à 97 images (25 scikit-image + 72 Kodak24). Les chiffres à 28 images étaient **optimistes** — Kodak (photos très texturées) est plus difficile pour le hash sémantique :
+
+| Récupérabilité DINOv2 cap. 16 | 28 images | 97 images |
+|---|---|---|
+| jpeg-80 | 100 % | 81 % |
+| jpeg-50 | 71 % | 56 % |
+| photométrie (lum./contraste) | 100 % | 92-100 % |
+| bruit | 86 % | 89 % |
+| crop-90 | 64 % | 37 % |
+| crop-70 / rotations / combinées | 14-29 % | 3-13 % |
+
+**La structure des conclusions ne bouge pas** (photométrie ✓, compression légère ✓, géométrie ✗, complémentarité DCT/DINOv2 confirmée — le DCT reste à 100 % sur jpeg/bruit), mais les niveaux baissent. Leçon à assumer en soutenance : les petits corpus flattent les résultats.
+
+**La fenêtre de discrimination, version affinée (97 images, en octets)** : dérives légitimes 3,5-16,4 ; géométrie 17,2-24,3 ; contenus distincts ~31. Les deux premières plages **se touchent presque** (jpeg-50 à 16,4 vs crop-90 à 17,2) : la capacité 16 est exactement au point de croisement — aucune valeur de parité ne peut séparer une compression forte d'un recadrage. Cela renforce les deux conclusions : (a) capacité 16 = optimum indépassable, (b) le hash hybride DCT+DINOv2 monte en priorité dans les perspectives, car le DCT est à 100 % précisément sur les deux lignes où DINOv2 cap. 16 faiblit (jpeg-50, bruit+jpeg).
+
+**Chiffres de référence pour le chapitre 3 : attendre le run Colab à ~1 600 images** (330 scènes indépendantes, ±1-2 points) — les tableaux actuels du chapitre (28 images) devront être mis à jour avec ces valeurs.
