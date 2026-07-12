@@ -362,8 +362,26 @@ Grille de lecture du run 3b (colonne `recuperable`, phase 1) :
 
 Lecture : même le faible DCT tient parfaitement sur compression et bruit — le problème est **géométrique et photométrique** (crop, rotation, luminosité), exactement là où les features sémantiques de DINOv2 sont censées être invariantes. L'avalanche est confirmée expérimentalement (1 flip non corrigé → distance tag 50 %).
 
-**En attente : le run DINOv2 sur les mêmes 28 images** (téléchargement des poids en cours, connexion lente). Commande prête :
-```bash
-PYTHONPATH=. python3 -m scripts.ciphermark.eval_phash_robustness \
-    --n 28 --data-dir ./corpus-test --csv results/phash_dino_reelles.csv
-```
+### Résultats DINOv2 (Colab, 12 juillet 2026) — LE verdict
+
+Trois configurations croisées sur les mêmes 28 images (CSV dans `results/`) :
+
+| Récupérabilité | DCT cap. 8 | DINOv2 cap. 8 | **DINOv2 cap. 16 (retenu)** |
+|---|---|---|---|
+| jpeg-80 / jpeg-50 | 100 % / 100 % | 36 % / 0 % | **100 % / 71 %** |
+| luminosité 0,7 / 1,5 | 21 % / 14 % | 100 % / 36 % | **100 % / 100 %** |
+| contraste 1,5 | 57 % | 43 % | **100 %** |
+| bruit 0,02 | 100 % | 29 % | 86 % |
+| crop-90 / crop-70 | 14 % / 0 % | 14 % / 0 % | 64 % / 29 % |
+| rot-5 / rot-15 | 0 % / 7 % | 0 % / 0 % | 29 % / 29 % |
+| combinées (crop/rot + jpeg) | 0 % | 0 % | 14–29 % |
+
+**Les trois enseignements à réciter :**
+
+1. **La parité 32 octets (capacité 16) est une nécessité, pas une option** : le hash DINOv2 dérive naturellement de 10-15 octets sous distorsion légère ; à capacité 8 il est inutilisable (jpeg-50 : 0 %). → Adopté comme défaut dans le code.
+2. **La fenêtre de discrimination** (l'argument le plus fort du chapitre 3) : dérives légitimes = 3-16 octets ; attaques géométriques = 20-22 ; contenus distincts (rejeu) ≈ 31. La capacité doit couvrir [0-16] sans mordre sur ~31 : 16 est le point d'équilibre. On ne peut PAS monter à 24 pour rattraper la géométrie sans rogner la marge anti-rejeu. Conclusion : **une rotation déplace le hash presque autant qu'un changement de contenu** — limite intrinsèque du hash global, à traiter par resynchronisation géométrique (perspective), pas par plus de parité.
+3. **Complémentarité DCT/DINOv2** : le DCT est imbattable sur compression/bruit (basses fréquences, insensibles au JPEG par construction), DINOv2 sur la photométrie (features sémantiques). Aucun ne couvre la géométrie. → Perspective : hash hybride, chaque vue avec sa parité.
+
+**Périmètre de viabilité démontré** : compression (jpeg-80 100 %, jpeg-50 71 %), photométrie (100 %), bruit (86 %) — l'écrasante majorité des transformations qu'une image subit en ligne. **Falaise résiduelle** : crops sévères, rotations, combinées — même zone faible que DistSeal (84 % en combiné), mais en tout-ou-rien chez nous.
+
+Reproductibilité : le run DCT Colab reproduit exactement les chiffres locaux (1,07 flip moyen sur jpeg-80 dans les deux environnements).

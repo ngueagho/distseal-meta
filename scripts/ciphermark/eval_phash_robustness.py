@@ -104,7 +104,7 @@ def main() -> int:
     ap.add_argument("--data-dir", default=None,
                     help="dossier d'images reelles (sinon: synthetiques)")
     ap.add_argument("--n-bits", type=int, default=256)
-    ap.add_argument("--rs-nsym", type=int, default=16,
+    ap.add_argument("--rs-nsym", type=int, default=32,
                     help="octets de parite RS (corrige nsym/2 octets)")
     ap.add_argument("--backbone", choices=("dino", "dct"), default="dino",
                     help="dct = fallback local, sans telechargement")

@@ -172,7 +172,11 @@ class PerceptualHash(nn.Module):
         n_bits: int = 256,
         backbone: Optional[nn.Module] = None,
         lsh_seed: int = 0xC0FFEE,
-        rs_nsym: int = 16,
+        # 32 octets de parite (corrige 16) : la derive legitime du hash DINOv2
+        # atteint 10-15 octets sous jpeg/photometrie, et les contenus distincts
+        # restent a ~31 octets -> 16 est le point d'equilibre mesure
+        # (cf. results/phash_dino_rs16.csv vs rs32).
+        rs_nsym: int = 32,
         input_size: int = 224,
     ):
         super().__init__()

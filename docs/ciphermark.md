@@ -115,11 +115,22 @@ La detection reussit seulement si les deux canaux passent :
 * **canal h (dur)** : le hash percu par le verifieur doit etre corrige
   EXACTEMENT vers le hash de generation. Un seul bit non corrige et
   l'avalanche de HMAC rend le tag attendu aleatoire (distance ~50%). Le
-  Reed-Solomon `nsym=16` corrige au plus **8 octets** errones -- pas 16
-  bits arbitraires : 9 bits disperses dans 9 octets differents suffisent
-  a tout perdre. Par ailleurs la parite RS calculee a la generation doit
-  etre transportee jusqu'au verifieur (embarquee dans le payload ou en
-  metadonnee) : ce canal de transport reste a specifier.
+  Reed-Solomon corrige `nsym/2` **octets** errones -- pas des bits
+  arbitraires : 17 bits disperses dans 17 octets differents suffisent
+  a tout perdre (avec nsym=32). La parite RS est stockee en base de
+  donnees, indexee par nonce.
+
+  **Choix de nsym : 32 (capacite 16 octets), mesure sur 28 images
+  reelles** (results/phash_dino_rs16.csv vs rs32.csv). La fenetre de
+  discrimination observee : derive legitime (jpeg, photometrie) = 3-16
+  octets ; attaques geometriques (crop-70, rotations) = 20-22 ; contenus
+  distincts (rejeu) ~31. La capacite doit couvrir la premiere plage sans
+  mordre sur la troisieme : 16 est le point d'equilibre. Monter a 24
+  rattraperait une partie de la geometrie mais rognerait la marge
+  anti-rejeu -- la geometrie deplace le hash presque autant qu'un
+  changement de contenu, c'est une limite intrinseque du hash global, a
+  traiter par resynchronisation geometrique (perspective), pas par plus
+  de parite.
 * **canal Omega (souple)** : tolere ~10% d'erreurs binaires (seuil de
   Hamming + p-value).
 
