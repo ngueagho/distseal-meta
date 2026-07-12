@@ -339,3 +339,31 @@ Grille de lecture du run 3b (colonne `recuperable`, phase 1) :
 - ≲ 50 % → binarisation LSH à retravailler ; résultat négatif mais publiable.
 
 *Résultats du run de contrôle DCT (synthétique, 12 images, 9 juillet 2026) : le hash s'effondre sous crop/rotation/luminosité (0 % récupérable) → falaise confirmée en borne basse. C'est attendu : le fallback DCT est faible par construction. La conclusion réelle attend DINOv2.*
+
+### Résultats du 12 juillet 2026 (à jour)
+
+**Tests unitaires : 14/14 OK.** Noyau crypto validé (HMAC déterministe, PRG reproductible, round-trip XOR, verdicts, p-values).
+
+**Chaîne bout-à-bout (`eval_ciphermark`, n=20, clés persistantes `./keys/`) :**
+- round-trip : **20/20** — toute image tatouée est reconnue ;
+- rejeu : **0/20** — aucun Ω transplanté sur une autre image ne passe ;
+- faux positifs sur bruit : **0/50**.
+
+**Protocole canal h — DCT sur 28 images naturelles (`results/phash_dct_reelles.csv`) :**
+
+| Distorsion | Récupérable (≤ 8 octets) |
+|---|---|
+| identity / noise-0.02 | 100 % |
+| jpeg-80 / jpeg-50 | **100 %** (1,3 flip en moyenne !) |
+| noise+jpeg-60 | 93 % |
+| contrast-1.5 | 57 % |
+| crop-90 | 14 % |
+| crop-70, rot-5, combinées crop+jpeg | **0 %** |
+
+Lecture : même le faible DCT tient parfaitement sur compression et bruit — le problème est **géométrique et photométrique** (crop, rotation, luminosité), exactement là où les features sémantiques de DINOv2 sont censées être invariantes. L'avalanche est confirmée expérimentalement (1 flip non corrigé → distance tag 50 %).
+
+**En attente : le run DINOv2 sur les mêmes 28 images** (téléchargement des poids en cours, connexion lente). Commande prête :
+```bash
+PYTHONPATH=. python3 -m scripts.ciphermark.eval_phash_robustness \
+    --n 28 --data-dir ./corpus-test --csv results/phash_dino_reelles.csv
+```
