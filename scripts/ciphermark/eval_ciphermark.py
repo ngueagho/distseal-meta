@@ -34,18 +34,24 @@ from distseal.ciphermark import (
 # ---------------------------------------------------------------------------
 
 def _jpeg(img: torch.Tensor, quality: int) -> torch.Tensor:
-    """JPEG via torchvision (requiert recent torchvision)."""
+    """JPEG via torchvision (requiert recent torchvision).
+
+    encode_jpeg ne prend que des tenseurs CPU : on fait l'aller-retour
+    explicitement pour ne pas retomber silencieusement dans le fallback
+    quand les images vivent sur GPU.
+    """
     try:
         import torchvision.io as tvio
         out = []
         for i in range(img.shape[0]):
-            x = (img[i].clamp(0, 1) * 255).to(torch.uint8)
+            x = (img[i].clamp(0, 1) * 255).to(torch.uint8).cpu()
             enc = tvio.encode_jpeg(x, quality=quality)
             dec = tvio.decode_jpeg(enc).float() / 255.0
-            out.append(dec)
+            out.append(dec.to(img.device))
         return torch.stack(out, dim=0)
-    except Exception:
-        # fallback: pas de JPEG -> petit bruit gaussien
+    except Exception as e:
+        # fallback: pas de JPEG -> petit bruit gaussien (et on le DIT)
+        print(f"[distorsions] JPEG indisponible ({e}), fallback bruit leger")
         return img + 0.005 * torch.randn_like(img)
 
 

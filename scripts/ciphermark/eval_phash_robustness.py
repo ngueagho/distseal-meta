@@ -60,9 +60,7 @@ ALL_DISTORTIONS = {**DISTORTIONS, **COMBINED}
 # Donnees
 # ---------------------------------------------------------------------------
 
-def load_images(data_dir: str, n: int, size: int = 256) -> torch.Tensor:
-    from PIL import Image
-
+def list_images(data_dir: str, n: int) -> list:
     exts = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
     paths = sorted(
         os.path.join(data_dir, f)
@@ -71,6 +69,11 @@ def load_images(data_dir: str, n: int, size: int = 256) -> torch.Tensor:
     )[:n]
     if not paths:
         raise FileNotFoundError(f"aucune image dans {data_dir}")
+    return paths
+
+
+def load_images(paths: list, size: int = 256) -> torch.Tensor:
+    from PIL import Image
 
     imgs = []
     for p in paths:
@@ -118,18 +121,23 @@ def main() -> int:
                     help="dct = fallback local, sans telechargement")
     ap.add_argument("--csv", default=None, help="export csv des resultats")
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--chunk", type=int, default=256,
+                    help="images traitees par morceau (borne la memoire)")
     args = ap.parse_args()
 
     device = torch.device(args.device)
     rs_capacity = args.rs_nsym // 2
 
     if args.data_dir:
-        base = load_images(args.data_dir, args.n).to(device)
+        paths = list_images(args.data_dir, args.n)
+        chunks = [paths[i:i + args.chunk]
+                  for i in range(0, len(paths), args.chunk)]
+        n = len(paths)
         src = args.data_dir
     else:
-        base = synthetic_images(args.n).to(device)
+        chunks = None   # synthetique, genere en un bloc (petits n)
+        n = args.n
         src = "synthetique"
-    n = base.shape[0]
 
     backbone = None
     if args.backbone == "dct":
@@ -139,11 +147,38 @@ def main() -> int:
                            backbone=backbone).to(device)
 
     print(f"\n[phash-eval] n={n} ({src}), n_bits={args.n_bits}, "
-          f"capacite RS = {rs_capacity} octets\n")
-
-    h_ref = hash_batched(phash, base)
+          f"capacite RS = {rs_capacity} octets, chunk={args.chunk}\n")
 
     # ------------------------------------------------------------- phase 1
+    # On accumule par morceaux pour ne jamais charger tout le corpus :
+    # pour chaque chunk on hashe la reference puis chaque distorsion.
+    names = list(ALL_DISTORTIONS.keys())
+    acc_flips = {name: [] for name in names}
+    acc_octets = {name: [] for name in names}
+    h_first = None   # premier hash, pour la phase 2
+
+    def process(base: torch.Tensor):
+        nonlocal h_first
+        h_ref = hash_batched(phash, base)
+        if h_first is None:
+            h_first = h_ref[0].copy()
+        for name in names:
+            with torch.no_grad():
+                h_d = hash_batched(phash, ALL_DISTORTIONS[name](base.clone()))
+            acc_flips[name].append((h_ref != h_d).sum(axis=1))
+            acc_octets[name].append(np.array(
+                [byte_errors(h_ref[i], h_d[i]) for i in range(base.shape[0])]))
+
+    if chunks is None:
+        process(synthetic_images(n).to(device))
+    else:
+        done = 0
+        for ch in chunks:
+            process(load_images(ch).to(device))
+            done += len(ch)
+            if len(chunks) > 1:
+                print(f"  ... {done}/{n} images traitees")
+
     print("Phase 1 -- canal h : flips et recuperabilite par distorsion")
     print("-" * 76)
     print(f"  {'distorsion':16s} {'flips moy':>9s} {'flips max':>9s} "
@@ -151,11 +186,9 @@ def main() -> int:
 
     rows = []
     hash_ok = {}   # name -> bool array (n,)
-    for name, fn in ALL_DISTORTIONS.items():
-        with torch.no_grad():
-            h_d = hash_batched(phash, fn(base.clone()))
-        flips = (h_ref != h_d).sum(axis=1)
-        octets = np.array([byte_errors(h_ref[i], h_d[i]) for i in range(n)])
+    for name in names:
+        flips = np.concatenate(acc_flips[name])
+        octets = np.concatenate(acc_octets[name])
         ok = octets <= rs_capacity
         hash_ok[name] = ok
         print(f"  {name:16s} {flips.mean():9.1f} {flips.max():9d} "
@@ -175,10 +208,10 @@ def main() -> int:
     wf = WitnessField(keys.s_master, keys.k_secret,
                       WitnessConfig(n_bits=args.n_bits))
 
-    h0 = np.packbits(h_ref[0], bitorder="big").tobytes()
+    h0 = np.packbits(h_first, bitorder="big").tobytes()
     tag0 = wf.expected_tag_bits(h0)
     for k_flips in (1, 2, 8):
-        h_mod = h_ref[0].copy()
+        h_mod = h_first.copy()
         h_mod[:k_flips] ^= 1
         hb = np.packbits(h_mod, bitorder="big").tobytes()
         tag = wf.expected_tag_bits(hb)

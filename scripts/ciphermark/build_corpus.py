@@ -29,6 +29,7 @@ from PIL import Image
 KODAK_URL = "http://r0k.us/graphics/kodak/kodak/kodim{:02d}.png"
 BSDS_URL = ("https://www2.eecs.berkeley.edu/Research/Projects/CS/vision/"
             "grouping/segbench/BSDS300-images.tgz")
+COCO_URL = "http://images.cocodataset.org/zips/{}.zip"
 
 
 def five_crops(img: np.ndarray, size: int = 256):
@@ -119,6 +120,46 @@ def add_bsds(out: str, size: int, max_scenes: int = 300) -> int:
     return total
 
 
+def add_coco(out: str, size: int, split: str, max_scenes: int) -> int:
+    """
+    Telecharge un split COCO (test2017: 40k, unlabeled2017: 123k) et en
+    convertit max_scenes en 256x256 (recadrage carre central), format jpg.
+    Une image par scene -- pas de multi-crops, on veut des scenes
+    independantes pour les statistiques. Prevoir la place du zip
+    (unlabeled2017 ~19 Go, uniquement raisonnable sur Colab).
+    """
+    import zipfile
+
+    tmp = os.path.join(out, f"_{split}.zip")
+    if not os.path.exists(tmp):
+        print(f"  telechargement {split}.zip ...")
+        urllib.request.urlretrieve(COCO_URL.format(split), tmp)
+    total = 0
+    with zipfile.ZipFile(tmp) as zf:
+        for info in zf.infolist():
+            if not info.filename.endswith(".jpg"):
+                continue
+            if total >= max_scenes:
+                break
+            with zf.open(info) as f:
+                try:
+                    img = Image.open(io.BytesIO(f.read())).convert("RGB")
+                except Exception:
+                    continue
+            W, H = img.size
+            s = min(W, H)
+            box = ((W - s) // 2, (H - s) // 2,
+                   (W - s) // 2 + s, (H - s) // 2 + s)
+            img = img.crop(box).resize((size, size), Image.BILINEAR)
+            stem = os.path.splitext(os.path.basename(info.filename))[0]
+            img.save(os.path.join(out, f"coco_{stem}.jpg"), quality=95)
+            total += 1
+            if total % 5000 == 0:
+                print(f"  {total} images converties...")
+    os.remove(tmp)
+    return total
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="corpus-test")
@@ -127,6 +168,10 @@ def main() -> int:
     ap.add_argument("--bsds", action="store_true", help="ajouter BSDS300")
     ap.add_argument("--bsds-max", type=int, default=300,
                     help="nb max de scenes BSDS")
+    ap.add_argument("--coco", choices=("val2017", "test2017", "unlabeled2017"),
+                    default=None, help="ajouter un split COCO")
+    ap.add_argument("--coco-max", type=int, default=50000,
+                    help="nb max de scenes COCO")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -139,6 +184,10 @@ def main() -> int:
     if args.bsds:
         n = add_bsds(args.out, args.size, args.bsds_max)
         print(f"bsds: {n} images")
+        total += n
+    if args.coco:
+        n = add_coco(args.out, args.size, args.coco, args.coco_max)
+        print(f"coco {args.coco}: {n} images")
         total += n
     print(f"total: {total} images dans {args.out}/")
     return 0
