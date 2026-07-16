@@ -403,4 +403,27 @@ Corpus étendu à 97 images (25 scikit-image + 72 Kodak24). Les chiffres à 28 i
 
 **La fenêtre de discrimination, version affinée (97 images, en octets)** : dérives légitimes 3,5-16,4 ; géométrie 17,2-24,3 ; contenus distincts ~31. Les deux premières plages **se touchent presque** (jpeg-50 à 16,4 vs crop-90 à 17,2) : la capacité 16 est exactement au point de croisement — aucune valeur de parité ne peut séparer une compression forte d'un recadrage. Cela renforce les deux conclusions : (a) capacité 16 = optimum indépassable, (b) le hash hybride DCT+DINOv2 monte en priorité dans les perspectives, car le DCT est à 100 % précisément sur les deux lignes où DINOv2 cap. 16 faiblit (jpeg-50, bruit+jpeg).
 
-**Chiffres de référence pour le chapitre 3 : attendre le run Colab à ~1 600 images** (330 scènes indépendantes, ±1-2 points) — les tableaux actuels du chapitre (28 images) devront être mis à jour avec ces valeurs.
+### Résultats définitifs à 50 997 images (Colab GPU, 16 juillet 2026) — LES chiffres du chapitre 3
+
+Corpus à l'échelle du papier DistSeal (qui évalue sur 50 000 images générées) : 50 000 scènes COCO unlabeled2017 + Kodak24 + BSDS300 + scikit-image = **50 997 images**. Trois runs : DINOv2 cap. 16 (retenu), DINOv2 cap. 8 (ablation parité), DCT cap. 16 (comparaison backbone). CSV : `results/colab50k_*.csv`.
+
+| Récupérabilité | DCT cap. 16 | DINOv2 cap. 8 | DINOv2 cap. 16 |
+|---|---|---|---|
+| jpeg-80 | **100 %** | 26 % | 92 % |
+| jpeg-50 | **100 %** | 3 % | 58 % |
+| bruit 0,02 | **100 %** | 22 % | 87 % |
+| lum. ×0,7 | 7 % | 97 % | **100 %** |
+| lum. ×1,5 | 7 % | 22 % | **78 %** |
+| contraste ×1,5 | **96 %** | 25 % | 84 % |
+| crop-90 | 17 % | 1 % | **40 %** |
+| crop-70 / rotations | 1-8 % | ~0 % | 1-9 % |
+| combinées avec géométrie | 2-8 % | ~0 % | 6-13 % |
+| bruit+jpeg-60 | **100 %** | 3 % | 53 % |
+
+**Fenêtre de discrimination à 50k (dérive moyenne, octets, DINOv2)** : légitimes 3,9-15,9 ; géométrie 17,6-25,4 ; contenus distincts ~31. Lecture spectaculaire : jpeg-50 (la pire distorsion légitime) affleure la capacité à 15,9, crop-90 (la géométrie la plus douce) la dépasse déjà à 17,6. **La capacité 16 tombe exactement dans l'interstice** — c'est la confirmation à grande échelle que 16 est l'optimum et qu'aucune parité ne rattrapera la géométrie.
+
+Évolution 28 → 97 → 50 997 : jpeg-80 100 → 81 → 92 %, crop-90 64 → 37 → 40 %, rot-5 29 → 13 → 9 %. Les niveaux bougent (dizaines de points), la structure jamais. Complémentarité DCT/DINOv2 confirmée à l'échelle : DCT 100 % sur jpeg/bruit (y compris bruit+jpeg), 7 % en luminosité ; DINOv2 inverse. Le hash hybride reste la perspective n°1.
+
+Argument pour le jury : *même ordre d'échantillonnage que l'évaluation DistSeal (50 000), sur photos naturelles car le hash opère en espace pixel et ignore la provenance ; la vérification sur images générées viendra avec l'intégration end-to-end.*
+
+Le chapitre 3 et les annexes du mémoire sont alignés sur ces chiffres (16 juillet 2026).
