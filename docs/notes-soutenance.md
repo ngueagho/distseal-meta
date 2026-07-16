@@ -426,4 +426,28 @@ Corpus à l'échelle du papier DistSeal (qui évalue sur 50 000 images généré
 
 Argument pour le jury : *même ordre d'échantillonnage que l'évaluation DistSeal (50 000), sur photos naturelles car le hash opère en espace pixel et ignore la provenance ; la vérification sur images générées viendra avec l'intégration end-to-end.*
 
+### Comparaison attaque par attaque avec DistSeal
+
+DistSeal ne publie ses résultats que **par famille d'attaques** (Tableau 1 du papier ; le Tableau 7 en annexe ne définit que les paramètres, vérifié sur la version HTML arXiv). Chaque attaque de notre protocole est donc mise en face de la moyenne de SA famille chez DistSeal (bit accuracy, latent post-hoc DC-AE, 50 000 images générées) :
+
+| Attaque | DistSeal (bit acc., moyenne de famille) | CipherMark (détection, 50 997 img) |
+|---|---|---|
+| identité | 99,75 % | 100 % |
+| JPEG Q=80 | 99,23 % (compression) | 92 % |
+| JPEG Q=50 | 99,23 % (compression) | 58 % |
+| bruit gaussien σ=0,02 | non testé (blur seulement) | 87 % |
+| luminosité ×0,7 | 98,08 % (valuemétrique) | 100 % |
+| luminosité ×1,5 | 98,08 % (valuemétrique) | 78 % |
+| contraste ×1,5 | 98,08 % (valuemétrique) | 84 % |
+| recadrage 90 % | 91,62 % (géométrique) | 40 % |
+| recadrage 70 % | 91,62 % (géométrique) | 8 % |
+| rotation 5° | 91,62 % (géométrique) | 9 % |
+| rotation 15° | 91,62 % (géométrique) | 1 % |
+| crop 80 % + JPEG 60 | 84,28 % (combinée) | 13 % |
+| crop 70 % + JPEG 50 | 84,28 % (combinée) | 6 % |
+| rot 5° + JPEG 70 | 84,28 % (combinée) | 6 % |
+| bruit + JPEG 60 | 84,28 % (combinée) | 53 % |
+
+**Trois précautions à réciter avec ce tableau.** (1) Métriques différentes : bit accuracy graduelle vs détection tout-ou-rien — 91 % de bits corrects reste exploitable au seuil, 91 % de détection non plus n'a pas le même sens. (2) Les moyennes de famille DistSeal incluent des paramètres faciles (crop 0,95, luminosité 1,25...) qui gonflent la moyenne face à nos paramètres précis, plutôt sévères. (3) Leur attaque combinée = JPEG (40/60/80) + crop 0,71 + luminosité 0,5 — proche de nos combinées mais pas identique. En échange du retrait de robustesse, CipherMark apporte anti-rejeu (0/20), zéro faux positif (p < 10⁻⁴⁰), attribution et liaison au contenu — quatre propriétés hors de portée de DistSeal quel que soit son taux.
+
 Le chapitre 3 et les annexes du mémoire sont alignés sur ces chiffres (16 juillet 2026).
