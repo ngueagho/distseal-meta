@@ -197,7 +197,7 @@ def hamming(a: np.ndarray, b: np.ndarray) -> int:
 if __name__ == "__main__":
     # petit smoke test
     k = random_seed()
-    msg = b"hello crystal"
+    msg = b"hello ciphermark"
     tag = hmac_sha256(k, msg)
     print("HMAC:", tag.hex()[:32], "...")
 

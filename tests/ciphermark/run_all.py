@@ -1,4 +1,4 @@
-"""Lance tous les tests crystal en mode 'python -m'."""
+"""Lance tous les tests ciphermark en mode 'python -m'."""
 
 import sys
 import traceback
@@ -31,7 +31,7 @@ def main() -> int:
     if failed:
         print(f"\n{failed} module(s) en echec")
         return 1
-    print("\nTous les tests crystal OK")
+    print("\nTous les tests ciphermark OK")
     return 0
 
 

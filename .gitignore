@@ -6,7 +6,7 @@ __pycache__/
 /outputs
 /output
 
-# CRYSTAL-OTP: secrets, jamais en clair dans le repo
+# CipherMark: secrets, jamais en clair dans le repo
 /keys/
 *.bin
-crystal_sse_cache/
+ciphermark_sse_cache/

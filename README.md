@@ -13,7 +13,7 @@ Official implementation of DistSeal, a unified framework for latent watermarking
 [ [Blog](https://ai.meta.com/research/publications/distilling-latent-space-watermarkers-into-generative-image-models/) ]
 [ [Meta Seal](https://facebookresearch.github.io/meta-seal/) ]
 
-> **Branche crystal** : CipherMark : extension OTP/HMAC apportant des garanties cryptographiques.
+> **Branche ciphermark** : CipherMark : extension OTP/HMAC apportant des garanties cryptographiques.
 > Voir [`docs/ciphermark.md`](docs/ciphermark.md) pour la doc et `distseal/ciphermark/` pour le code.
 </div>
 <p align="center">

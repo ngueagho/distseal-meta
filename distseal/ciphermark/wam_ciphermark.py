@@ -61,10 +61,10 @@ class CipherMarkWam(nn.Module):
 
         wam = build_my_wam(...)
         phash = PerceptualHash(n_bits=256)
-        crystal = CipherMarkWam(wam, phash, CipherMarkKeys.random())
+        ciphermark = CipherMarkWam(wam, phash, CipherMarkKeys.random())
 
-        out = crystal.embed(imgs)              # genere les images watermarkees
-        report = crystal.verify(out["imgs_w"], out["image_ids"])
+        out = ciphermark.embed(imgs)              # genere les images watermarkees
+        report = ciphermark.verify(out["imgs_w"], out["image_ids"])
     """
 
     def __init__(

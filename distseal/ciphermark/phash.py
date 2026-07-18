@@ -243,7 +243,7 @@ class PerceptualHash(nn.Module):
         bits = self.lsh(feat)  # (B, n_bits)
         return bits
 
-    # ------ helpers pour le pipeline crystal ------
+    # ------ helpers pour le pipeline ciphermark ------
 
     def hash_bytes(self, x: torch.Tensor) -> Tuple[bytes, ...]:
         bits = self.forward(x).cpu().numpy()
