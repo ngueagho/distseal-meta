@@ -1,10 +1,14 @@
 /data
 corpus-50k/
+corpus-colab/
+corpus-smoketest/
 __pycache__/
 *.pyc
 
 /outputs
 /output
+/runs
+.cache/
 
 # CipherMark: secrets, jamais en clair dans le repo
 /keys/

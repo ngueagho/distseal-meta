@@ -1,0 +1,96 @@
+#========================================================================================
+# CONFIG 2/3 -- entrainement "valide" sur GPU Colab. Resolution reelle (256, pas 64),
+# jeu de donnees plus large et plus representatif (corpus-colab/, 900 train / 98 val,
+# extrait de corpus-50k = melange COCO+Kodak+BSDS+scikit-image), budget d'iterations
+# dimensionne pour une session Colab (quelques heures), pas pour un cluster.
+#
+# Resultats destines a servir de repli si la config 3 (echelle DistSeal complete,
+# cf. discussion cout GPU) n'est pas finançable.
+#
+# IMPORTANT -- reprise entre sessions Colab (le tier gratuit deconnecte apres ~12h) :
+#   1) output_dir DOIT pointer vers Google Drive monte (sinon le checkpoint disparait
+#      a la deconnexion) : /content/drive/MyDrive/ciphermark/runs/colab_256bits
+#   2) train.py reprend automatiquement depuis output_dir/checkpoint.pth s'il existe
+#      (train.py:440-450) -- il suffit de relancer EXACTEMENT la meme commande dans
+#      une nouvelle session, aucun --resume_from a gerer a la main.
+#
+# Usage (sur Colab, apres montage Drive + git clone + pip install -r requirements.txt) :
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/posthoc_pixel_256bits_colab.yaml \
+#       --output_dir /content/drive/MyDrive/ciphermark/runs/colab_256bits
+#========================================================================================
+output_dir: "/content/drive/MyDrive/ciphermark/runs/colab_256bits"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+# Resolution reelle (celle du corpus et de PerceptualHash), pas le compromis CPU de la
+# config 1.
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+# watermarker : meme famille qu'en config 1 (posthoc pixel, sans autoencodeur) --
+# c'est CE choix d'architecture qu'on valide, pas une nouvelle piste.
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256                 # <- le changement central, deja valide fonctionnellement en config 1
+hidden_size_multiplier: 1
+scaling_w: 0.2
+scaling_w_schedule: Cosine,scaling_min=0.05,start_epoch=50,epochs=100
+
+#========================================================================================
+seed: 0
+
+# dataloading : tailles de lot standard DistSeal pour cette resolution (cf.
+# configs/training/*/posthoc_pixel.yaml). A reduire (8/4) si erreur "out of memory"
+# sur un T4 16 Go.
+batch_size_eval: 8
+batch_size: 16
+workers: 2
+
+# watermarker
+attenuation: null           # JND desactive pour rester comparable a la config 1 ;
+                             # activer "jnd_1_1" plus tard si le temps le permet
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+# augmentation : 2 augmentations composees par image, comme la recette DistSeal de
+# reference (contre 1 seule en config 1, qui visait juste la vitesse)
+num_augs: 2
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+
+# loss : mse pour rester independant des poids DISTS/Watson (chemins internes Meta,
+# indisponibles hors cluster FAIR -- cf. distseal/losses/perceptual.py)
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.1
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 20              # quelques epoques de chauffe avant d'activer le discriminateur
+
+# training : budget dimensionne pour une session Colab de quelques heures. A ajuster
+# a la hausse une fois la vitesse reelle (it/s) observee sur le GPU alloue -- grace a
+# la reprise automatique, on peut aussi simplement relancer plusieurs fois pour
+# accumuler plus d'epoques au fil de plusieurs sessions.
+epochs: 100
+iter_per_epoch: 200          # 100 x 200 = 20 000 pas, contre 80 en config 1 et 601 000
+                              # dans la recette DistSeal complete (config 3)
+eval_freq: 10
+saveimg_freq: 10
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=100,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 20
+finetune_detector_start: 2000

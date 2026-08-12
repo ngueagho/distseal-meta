@@ -8,7 +8,11 @@ MODULES = [
     "tests.ciphermark.test_crypto",
     "tests.ciphermark.test_witness",
     "tests.ciphermark.test_equation",
+    "tests.ciphermark.test_stable_subspace",
     "tests.ciphermark.test_msg_processor",
+    "tests.ciphermark.test_registry",
+    "tests.ciphermark.test_parity",
+    "tests.ciphermark.test_pipeline",
 ]
 
 

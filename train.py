@@ -691,7 +691,8 @@ def train_one_epoch(
                 ).nanmean().item()
                 log_stats['acc'] = acc_
 
-            torch.cuda.synchronize()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             for name, value in log_stats.items():
                 metric_logger.update(**{name: value})
 
@@ -829,7 +830,8 @@ def eval_one_epoch(
                 metrics['psnr'] = psnr(imgs_w, imgs).mean().item()
                 metrics['ssim'] = ssim(imgs_w, imgs).mean().item()
             metrics['embed_time'] = embed_time
-            torch.cuda.synchronize()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             metric_logger.update(**metrics)
 
             extract_times = []
@@ -899,11 +901,13 @@ def eval_one_epoch(
                         aug_log_stats = {f"{k}_{current_key}": v for k,
                                          v in aug_log_stats.items()}
 
-                        torch.cuda.synchronize()
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
                         metric_logger.update(**aug_log_stats)
 
             metrics['extract_time'] = np.mean(extract_times)
-            torch.cuda.synchronize()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
             metric_logger.update(**metrics)
 
     metric_logger.synchronize_between_processes()

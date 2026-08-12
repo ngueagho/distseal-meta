@@ -21,12 +21,23 @@ import torch.nn.functional as F
 from torch import nn
 
 
-# Reed-Solomon: dependance optionnelle.
+# Reed-Solomon: dependance optionnelle a l'import, mais obligatoire des qu'on
+# touche a la parite (cf. _RSWrap.parity / _RSWrap.correct qui levent).
 try:
-    from reedsolo import RSCodec  # type: ignore
+    from reedsolo import RSCodec, ReedSolomonError  # type: ignore
     _HAS_RS = True
 except Exception:
     _HAS_RS = False
+
+    class ReedSolomonError(Exception):  # type: ignore
+        """Stub quand reedsolo est absent."""
+
+
+_RS_MISSING_MSG = (
+    "reedsolo est requis pour la correction Reed-Solomon "
+    "(pip install -r requirements.txt). Sans lui, le canal h ne peut pas "
+    "absorber les derives legitimes et la verification echoue."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +131,18 @@ class RandomHyperplaneLSH(nn.Module):
 # ---------------------------------------------------------------------------
 
 class _RSWrap:
-    """Petit wrapper autour de reedsolo pour packer/unpacker des bits."""
+    """
+    Wrapper autour de reedsolo.
+
+    Deux niveaux d'API :
+      * bits  (encode_bits / decode_bits) : codeword complet data+parite,
+        conserve pour compatibilite ;
+      * octets (parity / correct)         : la parite est renvoyee SEULE,
+        pour etre stockee dans le registre de tracabilite et transmise au
+        verifieur separement du hash. C'est le mode utilise par CipherMark.
+
+    RSCodec(nsym) corrige jusqu'a nsym // 2 octets errones.
+    """
 
     def __init__(self, nsym: int = 16):
         if not _HAS_RS:
@@ -128,6 +150,43 @@ class _RSWrap:
         else:
             self.codec = RSCodec(nsym)
         self.nsym = nsym
+
+    @property
+    def capacity(self) -> int:
+        """Nombre d'octets errones corrigeables."""
+        return self.nsym // 2
+
+    def _require(self) -> None:
+        if self.codec is None:
+            raise RuntimeError(_RS_MISSING_MSG)
+
+    # ------------------------------------------------------------- octets ----
+
+    def parity(self, data: bytes) -> bytes:
+        """Parite seule (nsym octets) pour un bloc de donnees."""
+        self._require()
+        enc = bytes(self.codec.encode(bytes(data)))
+        return enc[len(data):]
+
+    def correct(self, data: bytes, parity: bytes) -> Tuple[bytes, bool]:
+        """
+        Corrige `data` a l'aide de `parity`.
+
+        Retour (data_corrige, succes). En cas d'echec du decodage (plus de
+        nsym//2 octets errones) on renvoie `data` inchange et succes=False :
+        le verifieur constatera alors un BER ~50 % par avalanche HMAC, ce qui
+        est le comportement voulu.
+        """
+        self._require()
+        if len(parity) != self.nsym:
+            raise ValueError(
+                f"parite de {len(parity)} octets, attendu {self.nsym}"
+            )
+        try:
+            dec = self.codec.decode(bytes(data) + bytes(parity))[0]
+            return bytes(dec), True
+        except ReedSolomonError:
+            return bytes(data), False
 
     def encode_bits(self, bits: np.ndarray) -> np.ndarray:
         if self.codec is None:
@@ -257,6 +316,28 @@ class PerceptualHash(nn.Module):
 
     def decode_with_rs(self, noisy_bits: np.ndarray) -> np.ndarray:
         return np.stack([self.rs.decode_bits(b) for b in noisy_bits], axis=0)
+
+    # ------ parite separee : ce qui transite par le registre ------
+
+    @property
+    def rs_capacity(self) -> int:
+        """Octets errones corrigeables (nsym // 2)."""
+        return self.rs.capacity
+
+    def parity_bytes(self, x: torch.Tensor) -> Tuple[bytes, ...]:
+        """Parite Reed-Solomon de chaque hash du batch (nsym octets chacune)."""
+        return tuple(self.rs.parity(h) for h in self.hash_bytes(x))
+
+    def hash_and_parity(
+        self, x: torch.Tensor
+    ) -> Tuple[Tuple[bytes, ...], Tuple[bytes, ...]]:
+        """(hashs, parites) en un seul passage du backbone."""
+        hs = self.hash_bytes(x)
+        return hs, tuple(self.rs.parity(h) for h in hs)
+
+    def correct(self, h_obs: bytes, parity: bytes) -> Tuple[bytes, bool]:
+        """Corrige un hash observe vers le mot de code de generation."""
+        return self.rs.correct(h_obs, parity)
 
 
 def hamming_stability(h1: np.ndarray, h2: np.ndarray) -> float:

@@ -10,6 +10,7 @@ Composants principaux:
     * witness.py          -- construction du champ temoin Omega
     * stable_subspace.py  -- sous-espace stable via Hessien (SSE)
     * equation.py         -- equation ciphermark + verdict + p-value
+    * registry.py         -- base de tracabilite nonce -> parite RS
     * msg_processor.py    -- drop-in replacement de MsgProcessor
     * wam_ciphermark.py      -- orchestrateur avec point fixe
 
@@ -35,6 +36,11 @@ from .stable_subspace import (  # noqa: F401
     build_projector_from_loss,
     random_stable_projector,
     identity_projector,
+)
+from .registry import (  # noqa: F401
+    TraceRegistry,
+    TraceEntry,
+    NonceReuseError,
 )
 from .equation import (  # noqa: F401
     CipherMarkVerifier,

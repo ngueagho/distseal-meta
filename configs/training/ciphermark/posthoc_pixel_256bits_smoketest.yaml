@@ -1,0 +1,83 @@
+#========================================================================================
+# CONFIG 1/3 -- test de fonctionnement, CPU local, donnees et ressources minimales.
+# But : verifier que le pipeline train.py tourne sans planter avec nbits=256 (au lieu
+# des 64 par defaut de DistSeal), ET obtenir un premier signal d'apprentissage reel
+# (bit_acc qui monte au-dessus de 0.5) -- pas juste "ca ne plante pas".
+# Toujours PAS destine a produire un modele utilisable en pratique (16 images, 10
+# epoques) -- ca reste un test, mais un test qui apprend un peu.
+#
+# output_dir volontairement different du smoke test v1 (./runs/ciphermark_smoketest) :
+# train.py reprend TOUJOURS automatiquement depuis output_dir/checkpoint.pth s'il
+# existe (train.py:440-450) -- reutiliser le meme dossier aurait fait repartir d'un
+# entrainement deja "termine" (voir l'episode "Total time 0:00:00").
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/posthoc_pixel_256bits_smoketest.yaml
+#========================================================================================
+output_dir: "./runs/ciphermark_smoketest_v2"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+# Resolution reduite (64x64) : sur CPU, 256x256 serait trop lent meme pour 3 iterations.
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+# watermarker : meme famille que le plan (posthoc pixel, sans autoencodeur)
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256                 # <- LE changement a valider (64 par defaut chez DistSeal)
+hidden_size_multiplier: 1  # hidden_size = nbits * multiplier = 256, calcule automatiquement
+scaling_w: 0.2
+scaling_w_schedule: Constant,scaling_min=0.2,epochs=10
+
+#========================================================================================
+seed: 0
+
+# dataloading : lots minuscules, pas de sous-process (evite les soucis sur poste modeste)
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+# watermarker
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+# augmentation : legere, pas de compression neuronale (modeles lourds a telecharger)
+num_augs: 1
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+
+# loss : la plus simple/rapide, pas de poids externes a telecharger (evite DISTS/Watson)
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.1
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 0              # active des le debut : on VEUT exercer ce chemin de code
+
+# training : 10 epoques sur les 16 images (8 lots/epoque, batch_size=2) -> assez pour
+# voir bit_acc bouger, encore raisonnable en duree sur CPU. Eval complete seulement
+# tous les 5 epoques (le balayage de ~90 augmentations est la partie couteuse).
+epochs: 10
+iter_per_epoch: 8
+eval_freq: 5
+saveimg_freq: 5
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=10,warmup_lr_init=1e-8,warmup_t=1
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 5
+finetune_detector_start: 2000

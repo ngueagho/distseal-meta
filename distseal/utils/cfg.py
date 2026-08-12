@@ -114,11 +114,11 @@ def setup_model(config: VideoWamConfig, ckpt_path: Path):
     extractor = build_extractor(config.extractor.model, config.extractor.params, args.img_size, args.nbits)
     augmenter = get_dummy_augmenter()  # does nothing
 
-    # Build attenuation
-    if args.attenuation.lower().startswith("jnd"):
+    # Build attenuation ('attenuation' is None when no JND was configured at training time)
+    if args.attenuation and args.attenuation.lower().startswith("jnd"):
         attenuation_cfg = OmegaConf.load(args.attenuation_config)
         attenuation = JND(**attenuation_cfg[args.attenuation])
-    elif args.attenuation.lower().startswith("simplified"):
+    elif args.attenuation and args.attenuation.lower().startswith("simplified"):
         attenuation_cfg = OmegaConf.load(args.attenuation_config)
         attenuation = VarianceBasedJND(**attenuation_cfg[args.attenuation])
     else:
