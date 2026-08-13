@@ -46,11 +46,11 @@ scaling_w_schedule: Cosine,scaling_min=0.05,start_epoch=50,epochs=100
 #========================================================================================
 seed: 0
 
-# dataloading : tailles de lot standard DistSeal pour cette resolution (cf.
-# configs/training/*/posthoc_pixel.yaml). A reduire (8/4) si erreur "out of memory"
-# sur un T4 16 Go.
+# dataloading : batch_size reduit suite a un OOM observe sur T4 16 Go avec 16
+# (256x256 + discriminateur actif + fragmentation memoire -- cf. journal de bord).
+# Remonter a 16 seulement sur un GPU a plus de VRAM (A100/L4).
 batch_size_eval: 8
-batch_size: 16
+batch_size: 8
 workers: 2
 
 # watermarker
@@ -67,12 +67,21 @@ augmentation_config: configs/augmentation/all_augs_v3.yaml
 
 # loss : mse pour rester independant des poids DISTS/Watson (chemins internes Meta,
 # indisponibles hors cluster FAIR -- cf. distseal/losses/perceptual.py)
+#
+# lambda_i remonte a 0.1 (au lieu de 0.0 dans le preset posthoc_pixel.yaml de
+# DistSeal) : sur un premier run, PSNR/SSIM se sont effondres progressivement
+# (27->14.7 / 0.87->0.75 en 24 epoques) pendant que bit_acc restait au niveau du
+# hasard (~0.50) -- rien ne retenait l'embedder de distordre l'image tant que le
+# discriminateur n'etait pas actif (disc_start=20) ni assez pese (lambda_d=0.1).
+# Hypothese : a nbits=256 (4x la capacite de 64), le petit reseau unet_small2 a
+# besoin d'une pression de fidelite visuelle des le debut. A revalider sur un
+# court run avant de relancer les 100 epoques completes.
 balanced: false
 total_gnorm: 1.0
 lambda_dec: 1.0
 lambda_det: 0.0
 lambda_d: 0.1
-lambda_i: 0.0
+lambda_i: 0.1
 perceptual_loss: mse
 maskbit_disc: true
 maskbit_maxpool: 8
