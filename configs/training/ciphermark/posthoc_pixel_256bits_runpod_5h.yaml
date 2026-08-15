@@ -43,10 +43,12 @@ scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=50,epochs=300
 #========================================================================================
 seed: 0
 
-# GPU paye (A100 40/80 Go) : plus de VRAM que le T4 Colab -> batch plus grand,
-# donc plus d'iterations utiles dans les 5h payees. Reduire a 16 si OOM persiste.
-batch_size_eval: 16
-batch_size: 32
+# batch_size réduit 32->16 : OOM CUDA confirmé sur RTX 4090 24 Go des que le
+# discriminateur s'active (disc_start=20) -- le forward/backward du
+# discriminateur ajoute assez de memoire pour deborder a batch=32. Tenait sans
+# probleme tant que seul loss_decode/loss_percep tournaient (epoques 0-19).
+batch_size_eval: 8
+batch_size: 16
 workers: 4
 
 attenuation: null
