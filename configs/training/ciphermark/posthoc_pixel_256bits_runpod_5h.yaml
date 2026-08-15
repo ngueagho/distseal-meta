@@ -28,8 +28,17 @@ embedder_model: unet_small2_yuv_quant
 extractor_model: convnext_tiny
 nbits: 256
 hidden_size_multiplier: 1
-scaling_w: 0.2
-scaling_w_schedule: Cosine,scaling_min=0.05,start_epoch=50,epochs=300
+# scaling_w remonte 0.2->0.5 : sur calibration (15-70 epoques, ~1400 pas), bit_acc
+# restait EXACTEMENT a 0.50 pendant que psnr grimpait sans fin (27->45) et
+# loss_percep tombait a 0.0000 -- solution degeneree ou l'embedder n'ecrit
+# quasiment plus rien. Hypothese : 0.2 est le budget de perturbation calibre par
+# DistSeal pour 64 bits (cf. configs/training/*/posthoc_pixel.yaml) ; a nbits=256
+# (4x l'info a coder) dans le meme budget, combine a lambda_i=0.1 qui recompense
+# desormais explicitement la fidelite, l'optimiseur "abandonne" le canal message
+# au profit du seul canal fidelite (qu'il peut driver a 0 facilement). A
+# revalider par une calibration courte avant de relancer un run long.
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=50,epochs=300
 
 #========================================================================================
 seed: 0
