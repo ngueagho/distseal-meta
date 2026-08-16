@@ -12,7 +12,7 @@ REPO_DIR="code-memoire"
 COCO_MAX="${COCO_MAX:-5000}"
 # Marge de securite sous les ~13.5h theoriques (10$ / 0.74$/h) : laisse du
 # temps pour le push Drive final et une marge sur le solde du compte.
-BUDGET_HOURS="${BUDGET_HOURS:-12h30m}"
+BUDGET_HOURS="${BUDGET_HOURS:-12.5h}"
 
 if [ ! -d "$REPO_DIR" ]; then
     git clone -b ciphermark "$REPO_URL" "$REPO_DIR"
