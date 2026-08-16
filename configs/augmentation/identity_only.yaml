@@ -1,0 +1,11 @@
+# Aucune augmentation reelle -- sert au test de memorisation (sanity check) :
+# si le reseau n'arrive meme pas a apprendre le message sur des images fixes
+# sans la moindre attaque, le probleme est dans le pipeline, pas dans la
+# difficulte de la tache.
+masks:
+  kind: none
+
+augs:
+  identity: 1
+
+augs_params: {}

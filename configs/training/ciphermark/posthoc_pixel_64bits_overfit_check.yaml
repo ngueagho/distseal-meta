@@ -1,0 +1,75 @@
+#========================================================================================
+# TEST DIFFERENTIEL -- copie exacte de posthoc_pixel_256bits_overfit_check.yaml, mais
+# nbits=64 (le defaut DistSeal). Seule variable qui change.
+#
+# But : le test a 256 bits echoue totalement (bit_acc reste a 0.50 apres 200 epoques
+# de memorisation pure sur 16 images fixes, sans augmentation ni discriminateur).
+# Est-ce specifique a 256 bits (ex: la somme de 256 embeddings dans MsgProcessor a une
+# variance/SNR trop degradee, cf. distseal/modules/msg_processor.py) ou plus profond ?
+#
+#   - Si bit_acc monte ici (64 bits) -> confirme un probleme de passage a l'echelle du
+#     schema d'encodage binaire+somme de DistSeal, specifique a nbits eleve.
+#   - Si bit_acc reste aussi bloque a 64 bits -> le bug est ailleurs, independant du
+#     nombre de bits (a chercher plus largement dans le pipeline).
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/posthoc_pixel_64bits_overfit_check.yaml
+#========================================================================================
+output_dir: "./runs/ciphermark_overfit_check_64bits"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64                   # <- SEULE VARIABLE CHANGEE (256 -> 64)
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Constant,scaling_min=0.5,epochs=200
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.1
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 200
+iter_per_epoch: 8
+eval_freq: 20
+saveimg_freq: 50
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=2
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 999999
+finetune_detector_start: 999999

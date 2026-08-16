@@ -1,0 +1,85 @@
+#========================================================================================
+# TEST DE MEMORISATION (sanity check), local CPU, gratuit -- PAS une des configs 1/2/3.
+#
+# But : trancher si le blocage de bit_acc a 0.50 observe sur RunPod (calib_v2/v3,
+# 30 epoques, deux valeurs de scaling_w) est un vrai bug du pipeline, ou juste un
+# probleme d'echelle/difficulte a nbits=256.
+#
+# Methode classique de debug deep learning : est-ce que le reseau peut au moins
+# MEMORISER le message sur une poignee d'images FIXES, sans la moindre attaque
+# (augmentation_config = identity_only.yaml) ni pression adverse (lambda_d=0) ?
+#
+#   - Si bit_acc monte vers ~1.0 ici -> le pipeline n'est pas casse, le probleme
+#     vient de la difficulte combinee (augmentations + discriminateur + 256 bits)
+#     avec les poids de perte actuels -> on ajuste lambda_dec/disc_start/duree.
+#   - Si bit_acc reste a 0.50 meme ici -> vrai bug (gradient qui ne circule pas
+#     jusqu'au canal message) -> a chercher dans msg_processor/embedder/extractor.
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/posthoc_pixel_256bits_overfit_check.yaml
+#========================================================================================
+output_dir: "./runs/ciphermark_overfit_check"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Constant,scaling_min=0.5,epochs=200
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+# AUCUNE augmentation reelle -- c'est le coeur du test.
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+# Discriminateur DESACTIVE (lambda_d=0) : on isole la seule question qui
+# compte ici, "le message peut-il etre appris du tout ?", sans la pression
+# adverse qui complique l'optimisation.
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.1
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999          # jamais atteint, lambda_d=0 le rend de toute facon inoperant
+
+# training : beaucoup d'epoques sur un tout petit jeu fixe -- on cherche la
+# memorisation, pas la generalisation. eval peu frequente (juste pour verifier
+# de temps en temps, pas pour mesurer une vraie robustesse ici).
+epochs: 200
+iter_per_epoch: 8
+eval_freq: 20
+saveimg_freq: 50
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=2
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 999999
+finetune_detector_start: 999999
