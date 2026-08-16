@@ -84,4 +84,10 @@ scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmu
 optimizer: AdamW,lr=5e-4
 full_eval_freq: 100
 finetune_detector_start: 2000
-saveckpt_freq: 10
+saveckpt_freq: 1000  # releve de 10 -- le volume RunPod (50 Go) a ete rempli par
+                      # l'accumulation de checkpoints numerotes jamais nettoyes,
+                      # provoquant un crash silencieux (ecriture tronquee) a
+                      # l'epoque 340. checkpoint.pth (ecrase a chaque fois, pas
+                      # accumule) suffit pour reprendre ; les snapshots numerotes
+                      # ne sont plus necessaires vu qu'on ne revient jamais en
+                      # arriere sur cette phase.
