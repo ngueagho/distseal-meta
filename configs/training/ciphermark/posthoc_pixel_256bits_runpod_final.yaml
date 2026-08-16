@@ -1,0 +1,84 @@
+#========================================================================================
+# CONFIG 3 -- run final, budget TEMPS = tout ce que permettent les ~10$ restants sur
+# RunPod, pas un nombre d'epoques fixe. Meme recette que
+# posthoc_pixel_256bits_runpod_5h.yaml (deja validee : scaling_w=0.5, lambda_i=0.1,
+# disc actif a partir de l'epoque 20, augmentations reelles all_augs_v3) --
+# seul le budget de temps change (~5h -> ~12h30 sur le meme GPU secure RTX 4090
+# a 0.74$/h, cf. plan de depense).
+#
+# Diagnostic du 16 aout 2026 (voir memoire-3-points-ouverts.md, point 1) : le
+# pipeline est verifie correct (gradient qui circule, message a effet causal
+# reel, memorisation pure en 25 pas). Ce qui manquait dans tous les runs
+# precedents (30 epoques RunPod, 200 epoques "overfit_check" 256 et 64 bits)
+# n'etait qu'un volume de pas d'entrainement trop faible pour la tache de
+# generalisation complete (nouveau message aleatoire a chaque pas). Ce run
+# vise donc simplement a maximiser le nombre de pas dans le budget restant.
+#
+# epochs/scheduler/scaling_w_schedule releves ~3x par rapport a la config 5h
+# (900 au lieu de 300) pour que les schedules de LR et de scaling_w couvrent
+# tout le budget de temps reel au lieu de se figer a leur valeur plancher
+# bien avant la fin -- c'est le script run_final.sh (timeout ~12h30) qui
+# arrete reellement le run, pas ce plafond d'epoques.
+#========================================================================================
+output_dir: "/workspace/runs/runpod_256bits_final"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=900
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 2
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.1
+lambda_i: 0.1
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 20
+
+# training : plafond volontairement haut (900 epoques * 200 iter = 180 000 pas),
+# c'est le budget TEMPS (run_final.sh) qui arrete reellement le run.
+epochs: 900
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 10           # snapshots numerotes frequents : filet de securite si
+                             # l'arret timeout (ou l'epuisement du budget RunPod)
+                             # tombe pendant l'ecriture de checkpoint.pth

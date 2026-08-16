@@ -1,6 +1,20 @@
-# RunPod -- CipherMark config 3 (~5h payees)
+# RunPod -- CipherMark config 3
 
-## Lancer le run
+## Run final (depense le reste du budget, ~10$ / ~12h30 sur RTX 4090 secure)
+
+```bash
+bash runpod/run_final.sh
+```
+
+Reprend le pod existant (21ah4heywiwjrx, volume 16rikircio deja attache) --
+meme recette validee que le run 5h (scaling_w=0.5, lambda_i=0.1, augmentations
+reelles), juste un budget de temps plus long. Calibration de 5 min d'abord,
+puis le run long (`timeout ${BUDGET_HOURS:-12h30m}`), quel que soit le nombre
+d'epoques atteint. Checkpoints numerotes toutes les 10 epoques
+(`saveckpt_freq: 10`) en plus du `checkpoint.pth` courant, pour ne rien perdre
+si l'arret tombe pendant une ecriture.
+
+## Run precedent (~5h payees, deja execute)
 
 ```bash
 bash runpod/run_5h.sh
