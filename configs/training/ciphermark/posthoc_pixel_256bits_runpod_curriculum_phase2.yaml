@@ -1,0 +1,76 @@
+#========================================================================================
+# CONFIG 3 -- variante "curriculum", PHASE 2 (complexification progressive).
+#
+# A lancer APRES la phase 1 (posthoc_pixel_256bits_runpod_curriculum_phase1.yaml),
+# une fois que bit_acc montre un signe clair de depart du hasard. Meme
+# output_dir -> train.py reprend automatiquement du dernier checkpoint.pth
+# (cf. train.py:440-450), en appliquant les NOUVEAUX hyperparametres
+# ci-dessous (LR reinjecte depuis ce fichier a chaque resume).
+#
+# Changements vs phase 1 : augmentations reelles reactivees, discriminateur
+# reactive des le premier epoch de cette phase (disc_start: 0 -- au moment ou
+# ce fichier est utilise, l'epoch de reprise est deja > 0 grâce au
+# checkpoint, donc "epoch < disc_start" est immediatement faux, le disc
+# s'active tout de suite).
+#========================================================================================
+output_dir: "/workspace/runs/runpod_256bits_curriculum"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=900
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+# PHASE 2 : augmentations reelles reactivees.
+num_augs: 2
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+# PHASE 2 : discriminateur reactive immediatement (l'epoch de reprise est
+# deja > 0, donc disc_start=0 le rend actif des le premier pas de la phase).
+lambda_d: 0.1
+lambda_i: 0.1
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 0
+
+epochs: 900
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 10

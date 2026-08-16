@@ -1,0 +1,91 @@
+#========================================================================================
+# CONFIG 3 -- variante "curriculum", PHASE 1 (canal message d'abord).
+#
+# Contexte (16 aout 2026) : le run posthoc_pixel_256bits_runpod_final.yaml
+# (disc actif des l'epoque 20, augmentations reelles all_augs_v3, dataset
+# diversifie 5398 images) a montre un effondrement progressif sur ~80
+# epoques : psnr grimpe sans fin (40 -> 64 dB), loss_disc reste negatif en
+# continu (le discriminateur "perd", n'empeche plus rien), bit_acc reste
+# exactement au hasard (0.50) -- le meme schema que le tout premier essai a
+# scaling_w=0.2, qui avait motive le passage a 0.5. Cette fois scaling_w=0.5
+# n'a pas suffi non plus a long terme.
+#
+# Hypothese testee ici : le canal message n'a jamais l'occasion de s'etablir
+# car le discriminateur + les augmentations + un dataset diversifie sont
+# presents des le debut, noyant le faible signal de decodage initial. Le
+# test de memorisation pure (image et message fixes, SANS disc ni
+# augmentation) avait pourtant appris parfaitement en 25 pas avec la meme
+# ponderation lambda_dec=1.0/lambda_i=0.1.
+#
+# Phase 1 : reproduit ces conditions favorables (disc desactive, augmentation
+# identite) mais sur le vrai dataset diversifie (pas une image fixe), pour
+# laisser le canal message s'etablir avant de complexifier. Sortie sur le
+# MEME output_dir que la phase 2 (meme schedule LR/scaling_w, t_initial=900
+# identique dans les deux fichiers) : train.py reprend automatiquement du
+# dernier checkpoint.pth quand on relance avec la config phase 2.
+#
+# Pas de garantie que ca resout le probleme -- ajustement empirique informe,
+# documente comme tel (voir memoire-3-points-ouverts.md).
+#========================================================================================
+output_dir: "/workspace/runs/runpod_256bits_curriculum"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=900
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+# PHASE 1 : aucune augmentation reelle -- laisse le canal message s'etablir
+# d'abord, comme dans le test de memorisation qui a fonctionne.
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+# PHASE 1 : discriminateur desactive -- seule la fidelite (lambda_i) et le
+# decodage (lambda_dec) sont en jeu, comme dans le test qui a marche.
+lambda_d: 0.0
+lambda_i: 0.1
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 900
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 10
