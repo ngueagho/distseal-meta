@@ -50,6 +50,7 @@ from distseal.ciphermark.wam_ciphermark import (
 )
 from distseal.data.datasets import ImageFolder
 from distseal.data.transforms import get_resize_transform
+from distseal.utils import optim as uoptim
 from distseal.utils.cfg import get_config_from_checkpoint, setup_model
 
 DEVICE = torch.device("cpu")
@@ -80,6 +81,35 @@ def load_checkpoint_with_retry(path: str, retries: int = 5, delay: float = 5.0):
     raise RuntimeError(f"impossible de charger {path} apres {retries} tentatives") from last_exc
 
 
+def _replay_scaling_schedule(wam, cfg, checkpoint_path: str) -> None:
+    """
+    BUG CORRIGE : `wam.blender.scaling_w` est un simple float Python (pas un
+    buffer du state_dict), donc `setup_model()` le reconstruit a la valeur
+    statique de la config (`args.scaling_w`, ex 0.5) au lieu de la valeur
+    reellement atteinte a l'epoque du checkpoint via `scaling_w_schedule`
+    (ex Cosine vers 0.1 des l'epoque 1050). Sans ce correctif, on embarque
+    a une amplitude jusqu'a 5x trop forte par rapport a ce que l'extracteur
+    a ete entraine a lire a ce stade -- PSNR artificiellement degrade et
+    bit_acc biaise. On rejoue le meme ScalingScheduler que train.py
+    (meme obj/attribute/parametres) jusqu'a l'epoque sauvegardee.
+    Trouve/corrige initialement dans generate_qualitative_figures.py.
+    """
+    if cfg.args.scaling_w_schedule is None:
+        return
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    epoch = checkpoint.get("epoch")
+    if epoch is None:
+        return
+    schedule_params = uoptim.parse_params(cfg.args.scaling_w_schedule)
+    scheduler = uoptim.ScalingScheduler(
+        obj=wam.blender, attribute="scaling_w", scaling_o=cfg.args.scaling_w,
+        **schedule_params,
+    )
+    effective = scheduler.step(epoch)
+    log(f"scaling_w rejoue depuis le schedule a l'epoque {epoch}: "
+        f"{cfg.args.scaling_w} (statique) -> {effective:.4f} (effectif)")
+
+
 def build_wam(checkpoint_path: str, retries: int = 5, delay: float = 5.0):
     """Reconstruit le VideoWam d'entrainement depuis le checkpoint, force CPU/eval."""
     last_exc = None
@@ -87,6 +117,7 @@ def build_wam(checkpoint_path: str, retries: int = 5, delay: float = 5.0):
         try:
             cfg = get_config_from_checkpoint(checkpoint_path)
             wam = setup_model(cfg, checkpoint_path)
+            _replay_scaling_schedule(wam, cfg, checkpoint_path)
             wam = wam.to(DEVICE)
             wam.eval()
             return wam, cfg
