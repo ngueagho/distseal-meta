@@ -1,0 +1,85 @@
+#========================================================================================
+# CONFIG 3 -- "phase 2" : reintroduction PRUDENTE de la fidelite apres la
+# phase 0 (decodage pur, bit_acc ~0.58-0.59 atteint sur donnees reelles
+# diversifiees, cf. memoire-3-points-ouverts.md).
+#
+# Contrairement aux tentatives precedentes (run initial et curriculum phase 1)
+# qui utilisaient lambda_i=0.1 d'emblee et ont recollapse (psnr sans fin,
+# bit_acc au hasard), cette phase reintroduit la fidelite a un poids BEAUCOUP
+# plus faible (lambda_i=0.01, 10x moins que ce qui a echoue) et GARDE le
+# discriminateur desactive (lambda_d=0) et l'augmentation identite -- un seul
+# axe de difficulte reintroduit a la fois, a faible intensite, pour eviter de
+# noyer le signal de decodage deja etabli.
+#
+# Meme output_dir que la phase 0 -> train.py reprend automatiquement du
+# dernier checkpoint.pth (cf. train.py:440-450), en appliquant ces nouveaux
+# hyperparametres (LR/poids de perte re-injectes a chaque resume).
+#
+# Si bit_acc tient (ne retombe pas au hasard) apres quelques dizaines
+# d'epoques : augmenter lambda_i par paliers, puis reintroduire le
+# discriminateur, puis les augmentations -- dans cet ordre, un axe a la fois.
+# Si bit_acc recollapse meme a ce niveau tres faible : signal fort que le
+# compromis fidelite/decodage a nbits=256 est fondamentalement difficile avec
+# ce budget, independamment du reglage fin des poids.
+#========================================================================================
+output_dir: "/workspace/runs/runpod_256bits_phase0_puredecode"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=900
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+# PHASE 2 : disc toujours desactive -- un seul axe de difficulte a la fois.
+lambda_d: 0.0
+# PHASE 2 : fidelite reintroduite a 10x moins que ce qui a fait collapser
+# les tentatives precedentes (0.1 -> 0.01).
+lambda_i: 0.01
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 900
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 1000  # cf. incident disque plein -- ne pas accumuler de snapshots numerotes
