@@ -87,18 +87,90 @@ def log(msg: str) -> None:
     print(f"[sse-hessian] {time.strftime('%H:%M:%S')} {msg}", flush=True)
 
 
+def patch_grn_for_double_backward() -> None:
+    """Rustine (au runtime, sans toucher au fichier source) de la couche GRN
+    du ConvNeXt extractor.
+
+    Constat empirique (diagnostic sur ce checkpoint) : `distseal/modules/
+    common.py::GRN.forward` utilise `torch.norm(x, p=2, dim=(1,2))`. La
+    derivee SECONDE de `torch.norm` est singuliere quand la norme est nulle
+    ou quasi nulle (ce qui arrive : certains canaux ConvNeXt ont une carte
+    spatiale quasi nulle) -- `torch.autograd.grad(..., create_graph=True)`
+    (necessaire pour les produits Hessien-vecteur de Lanczos) fait alors
+    remonter des NaN via `DivBackward0`, confirme par
+    `torch.autograd.set_detect_anomaly(True, check_nan=True)`.
+
+    On ne peut pas editer `common.py` (script auto-contenu, perimetre de
+    cette experience). On monkeypatch donc `GRN.forward` avec un calcul
+    STRICTEMENT equivalent numeriquement (meme sortie a 1e-6 pres, le meme
+    epsilon que celui deja utilise par les autres couches de norme de ce
+    fichier), mais avec l'epsilon SOUS la racine plutot qu'apres coup, ce
+    qui rend la derivee seconde partout bien definie.
+    """
+    from distseal.modules import common as _common_mod
+
+    def _stable_grn_forward(self, x):
+        Gx = torch.sqrt((x ** 2).sum(dim=(1, 2), keepdim=True) + 1e-6)
+        Nx = Gx / (Gx.mean(dim=-1, keepdim=True) + 1e-6)
+        return self.gamma * (x * Nx) + self.beta + x
+
+    _common_mod.GRN.forward = _stable_grn_forward
+    log("GRN.forward monkeypatche (norme stabilisee pour le double-backward Lanczos)")
+
+
+def load_checkpoint_with_retry(path: str, retries: int = 5, delay: float = 5.0):
+    """torch.load() avec re-essais.
+
+    Le checkpoint est reecrit periodiquement par le job d'entrainement GPU
+    qui tourne en parallele sur ce pod (cf. saveckpt_freq) -- une lecture
+    peut donc tomber en plein milieu d'une ecriture et echouer
+    (`PytorchStreamReader failed reading file ...`), observe empiriquement.
+    On ne modifie jamais le fichier, on relit juste apres un court delai.
+    """
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            return torch.load(path, map_location="cpu", weights_only=True)
+        except Exception as exc:  # noqa: BLE001 - on veut vraiment tout capter ici
+            last_exc = exc
+            log(f"lecture checkpoint echouee (tentative {attempt}/{retries}): {exc} "
+                f"-- probablement une ecriture concurrente du job d'entrainement, "
+                f"nouvel essai dans {delay:.0f}s")
+            time.sleep(delay)
+    raise RuntimeError(
+        f"impossible de charger {path} apres {retries} tentatives"
+    ) from last_exc
+
+
 # ---------------------------------------------------------------------------
 # Chargement modele + donnees
 # ---------------------------------------------------------------------------
 
-def build_wam(checkpoint_path: str):
+def build_wam(checkpoint_path: str, retries: int = 5, delay: float = 5.0):
     """Reconstruit exactement le VideoWam d'entrainement (meme chemin que
-    setup_model_from_checkpoint), force sur CPU."""
-    cfg = get_config_from_checkpoint(checkpoint_path)
-    wam = setup_model(cfg, checkpoint_path)
-    wam = wam.to(DEVICE)
-    wam.eval()  # batchnorm sur stats roulantes -> loss_fn deterministe
-    return wam, cfg
+    setup_model_from_checkpoint), force sur CPU.
+
+    `get_config_from_checkpoint`/`setup_model` font leur propre `torch.load`
+    en interne (fichier hors perimetre de ce script, on ne le modifie pas) --
+    on encapsule donc l'ENSEMBLE dans une boucle de re-essai, pour la meme
+    raison que `load_checkpoint_with_retry` (lecture concurrente du job
+    d'entrainement GPU qui reecrit ce checkpoint)."""
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            cfg = get_config_from_checkpoint(checkpoint_path)
+            wam = setup_model(cfg, checkpoint_path)
+            wam = wam.to(DEVICE)
+            wam.eval()  # batchnorm sur stats roulantes -> loss_fn deterministe
+            return wam, cfg
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            log(f"construction du Wam echouee (tentative {attempt}/{retries}): {exc} "
+                f"-- nouvel essai dans {delay:.0f}s")
+            time.sleep(delay)
+    raise RuntimeError(
+        f"impossible de construire le Wam depuis {checkpoint_path} apres {retries} tentatives"
+    ) from last_exc
 
 
 def load_val_images(val_dir: str, img_size: int, n_total: int, seed: int) -> torch.Tensor:
@@ -313,7 +385,9 @@ def main() -> int:
     log(f"CPU uniquement, threads={args.threads}, CUDA_VISIBLE_DEVICES="
         f"{os.environ.get('CUDA_VISIBLE_DEVICES')!r}")
 
-    ckpt_epoch = torch.load(args.checkpoint, map_location="cpu", weights_only=True).get("epoch")
+    patch_grn_for_double_backward()
+
+    ckpt_epoch = load_checkpoint_with_retry(args.checkpoint).get("epoch")
     log(f"checkpoint epoch={ckpt_epoch}")
 
     t0 = time.time()
