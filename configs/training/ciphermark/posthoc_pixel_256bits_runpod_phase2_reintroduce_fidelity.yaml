@@ -73,11 +73,19 @@ disc_num_layers: 3
 disc_in_channels: 3
 disc_start: 999999
 
-epochs: 900
+epochs: 3000  # BUG CORRIGE : la phase 0 a fini a l'epoque 900 (son propre
+              # plafond). Cette phase reprend du meme checkpoint/output_dir,
+              # donc range(start_epoch=900, epochs) etait vide si epochs=900
+              # -- la phase 2 s'est terminee instantanement (0 pas) au premier
+              # lancement. Plafond releve tres au-dessus de ce qui sera
+              # reellement atteint, meme philosophie que les autres configs.
 iter_per_epoch: 200
 eval_freq: 20
 saveimg_freq: 20
 iter_per_valid: 4
+# scheduler NON modifie (t_initial reste 900) : timm CosineLRScheduler
+# maintient lr_min une fois epoch >= t_initial, ce qui est voulu ici (LR
+# basse et stable pour cette etape de transition delicate).
 scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=900,warmup_lr_init=1e-8,warmup_t=5
 optimizer: AdamW,lr=5e-4
 full_eval_freq: 100
