@@ -77,6 +77,7 @@ from distseal.ciphermark.stable_subspace import (
 )
 from distseal.data.datasets import ImageFolder
 from distseal.data.transforms import get_resize_transform
+from distseal.utils import optim as uoptim
 from distseal.utils.cfg import get_config_from_checkpoint, setup_model
 from distseal.utils.metrics import bit_accuracy
 
@@ -146,6 +147,38 @@ def load_checkpoint_with_retry(path: str, retries: int = 5, delay: float = 5.0):
 # Chargement modele + donnees
 # ---------------------------------------------------------------------------
 
+def _replay_scaling_schedule(wam, cfg, checkpoint_path: str) -> None:
+    """
+    BUG CORRIGE : `wam.blender.scaling_w` est un simple float Python (pas un
+    buffer du state_dict), donc `setup_model()` le reconstruit a la valeur
+    statique de la config (`args.scaling_w`, ex 0.5) au lieu de la valeur
+    reellement atteinte a l'epoque du checkpoint via `scaling_w_schedule`
+    (ex Cosine vers 0.1 des l'epoque 1050). Sans ce correctif, on attaque
+    une table d'embedding utilisee a une amplitude jusqu'a 5x trop forte par
+    rapport a ce que l'extracteur a ete entraine a lire a ce stade -- biaise
+    aussi bien le Hessien (loss de decodage evalue au mauvais point de
+    fonctionnement) que le bit_acc de reference. On rejoue le meme
+    ScalingScheduler que train.py (meme obj/attribute/parametres) jusqu'a
+    l'epoque sauvegardee. Trouve/corrige initialement dans
+    generate_qualitative_figures.py, propage dans full_chain_real_weights_test.py
+    (cf. sa fonction `_replay_scaling_schedule`, meme motif ici).
+    """
+    if cfg.args.scaling_w_schedule is None:
+        return
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    epoch = checkpoint.get("epoch")
+    if epoch is None:
+        return
+    schedule_params = uoptim.parse_params(cfg.args.scaling_w_schedule)
+    scheduler = uoptim.ScalingScheduler(
+        obj=wam.blender, attribute="scaling_w", scaling_o=cfg.args.scaling_w,
+        **schedule_params,
+    )
+    effective = scheduler.step(epoch)
+    log(f"scaling_w rejoue depuis le schedule a l'epoque {epoch}: "
+        f"{cfg.args.scaling_w} (statique) -> {effective:.4f} (effectif)")
+
+
 def build_wam(checkpoint_path: str, retries: int = 5, delay: float = 5.0):
     """Reconstruit exactement le VideoWam d'entrainement (meme chemin que
     setup_model_from_checkpoint), force sur CPU.
@@ -160,6 +193,7 @@ def build_wam(checkpoint_path: str, retries: int = 5, delay: float = 5.0):
         try:
             cfg = get_config_from_checkpoint(checkpoint_path)
             wam = setup_model(cfg, checkpoint_path)
+            _replay_scaling_schedule(wam, cfg, checkpoint_path)
             wam = wam.to(DEVICE)
             wam.eval()  # batchnorm sur stats roulantes -> loss_fn deterministe
             return wam, cfg
