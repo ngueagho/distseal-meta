@@ -1,0 +1,95 @@
+#========================================================================================
+# CONFIG 3 -- "phase 3" : redemarrage du LR pour pousser bit_acc au-dela du
+# plateau de la phase 2 (~0.605-0.606, stable depuis l'epoque 900 jusqu'a
+# 2200+).
+#
+# Diagnostic (17 aout 2026, cf. memoire-3-points-ouverts.md) : train.py
+# appelle `scheduler.step(epoch)` avec l'EPOQUE ABSOLUE CUMULEE (pas relative
+# a la phase), cf. train.py:498-505. Le schedule de la phase 2
+# (CosineLRScheduler, t_initial=900) etait donc DEJA a son plancher lr_min=1e-6
+# des le premier pas de la phase 2 (qui reprenait a l'epoque 900 = t_initial),
+# et y est reste pour toute la duree -- ce n'est pas un vrai plateau de
+# convergence, c'est un LR quasi nul qui empeche tout apprentissage
+# supplementaire depuis le debut de la phase 2.
+#
+# Fix : reprendre les POIDS (pas le compteur d'epoque) via --resume_from
+# (train.py:425-435, charge juste le modele, ignore l'epoque du checkpoint)
+# avec un NOUVEAU output_dir -- la reprise automatique depuis
+# output_dir/checkpoint.pth (train.py:440-450) ne trouvera rien dans ce
+# nouveau dossier et n'ecrasera pas ce mecanisme (restart_from_checkpoint
+# renvoie silencieusement si le fichier n'existe pas, cf.
+# distseal/utils/optim.py:151-152). L'epoque redemarre a 0, donnant un vrai
+# nouveau cycle cosinus complet avec LR=5e-4 au depart.
+#
+# scaling_w=0.1 (PAS 0.5) : c'est la valeur EFFECTIVE atteinte par le
+# schedule de la phase 2 a ce stade (cf. bug scaling_w statique vs effectif
+# deja documente/corrige dans les scripts d'inference) -- on demarre la
+# phase 3 directement a l'amplitude ou l'extracteur est deja calibre, pas de
+# schedule de decroissance ici (Constant) pour eviter une perturbation
+# transitoire en repassant par 0.5.
+#
+# lambda_i=0.01 et lambda_d=0 inchanges (la reintroduction de la fidelite a
+# ce niveau a deja ete validee stable sur 1300+ epoques en phase 2) -- seul
+# le LR est redemarre, un seul axe de changement a la fois.
+#========================================================================================
+output_dir: "/workspace/runs/runpod_256bits_phase3_lr_restart"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.1
+scaling_w_schedule: Constant,scaling_min=0.1,epochs=1500
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.01
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+# epoque repart a 0 (via --resume_from, pas la reprise automatique) : un
+# vrai nouveau cycle cosinus complet, LR=5e-4 -> 1e-6 sur 1500 epoques
+# (~300 000 pas, plus que la phase0+phase2 combinees).
+epochs: 1500
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1500,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 1000
