@@ -1,0 +1,128 @@
+#========================================================================================
+# PHASE A1 -- TEST PLANCHER PROPRE, nbits=256, 100% LOCAL CPU.
+#
+# POURQUOI CETTE CONFIG EXISTE
+# ----------------------------
+# Les deux runs `ciphermark_overfit_check*` ont conclu a bit_acc = 0.50 (hasard)
+# et ont servi d'argument pour dire "le canal n'apprend pas". Ce diagnostic est
+# invalide : ces runs tournaient avec `lambda_i: 0.1`, c'est-a-dire AVEC pression
+# de fidelite. Leur PSNR final (43.9 dB a 256 bits, 42.3 dB a 64 bits) montre que
+# l'embedder a appris a ne PLUS RIEN ECRIRE -- c'est le collapse vers l'identite,
+# pas une limite de capacite. La minimisation de lambda_i * ||imgs_w - imgs||
+# domine le signal de decodage et l'embedder converge vers la solution triviale.
+#
+# C'est exactement ce que la config `posthoc_pixel_256bits_runpod_phase0_puredecode`
+# a corrige plus tard (lambda_i=0, lambda_d=0, lambda_dec seul), et c'est le seul
+# run du projet qui a fait decoller bit_acc au-dessus du hasard (0.61).
+#
+# Aucun test de surapprentissage PROPRE n'a donc jamais ete fait sur ce projet.
+# Cette config comble ce trou.
+#
+# LA QUESTION POSEE
+# -----------------
+# Dans les conditions les plus favorables imaginables -- 16 images seulement,
+# aucune pression de fidelite, aucune pression adversariale, aucune attaque
+# (augmentation identite), watermark a pleine force (scaling_w constant 0.5) --
+# le couple embedder/extracteur apprend-il a transporter 256 bits ?
+#
+#   * bit_acc -> 0.95+  : l'architecture fonctionne. Le blocage constate a
+#                         l'echelle reelle est un probleme de curriculum ou de
+#                         volume de donnees. => on enchaine sur la phase A2
+#                         (courbe de capacite sur GPU).
+#   * bit_acc reste 0.50: le probleme est STRUCTUREL (pipeline, gradient,
+#                         appariement message/lecture). Aucun budget GPU ne le
+#                         resoudra. => on arrete et on debugue avant de depenser.
+#
+# NOTE IMPORTANTE SUR LA NATURE DU TEST
+# --------------------------------------
+# train.py tire un message ALEATOIRE a chaque iteration (`get_random_msg()`).
+# Le modele ne peut donc pas "memoriser" un motif : meme sur 16 images il doit
+# apprendre une vraie fonction encode/decode generique. Ce test est donc plus
+# exigeant qu'un surapprentissage au sens strict. Si le resultat est ambigu, la
+# variante plancher absolu (message FIXE) devra etre testee ensuite.
+#
+# DIFFERENCES AVEC posthoc_pixel_256bits_overfit_check.yaml
+# ---------------------------------------------------------
+#   lambda_i        : 0.1 -> 0.0     (LE correctif -- supprime le collapse)
+#   epochs          : 200 -> 1250    (1 600 -> 10 000 iterations)
+#   scheduler       : t_initial suit epochs (1250)
+#   output_dir      : nouveau dossier, pour ne pas ecraser l'ancien run
+# Tout le reste est identique, pour que la comparaison soit controlee.
+#
+# ATTENTION -- PIEGE SUR iter_per_epoch
+# --------------------------------------
+# `iter_per_epoch` est un PLAFOND, pas une cible : train.py:594 fait
+# `if it >= params.iter_per_epoch: break` en bouclant sur le dataloader. Avec
+# 16 images d'entrainement et batch_size=2, le dataloader ne contient que
+# 8 lots -- une epoque vaut donc TOUJOURS 8 iterations ici, quelle que soit la
+# valeur de iter_per_epoch. Le seul levier pour allonger l'entrainement sur ce
+# corpus est le nombre d'epoques. C'est ce piege qui rendait l'ancien run
+# `overfit_check` beaucoup plus court qu'il n'y paraissait.
+#
+# BUDGET
+# ------
+# ~0.9 s/iter mesure au demarrage sur cette machine (4 coeurs, pas de GPU,
+# 64x64, batch 2) -- une epoque de 8 iterations = ~7 s.
+# 1250 epoques x 8 iterations = 10 000 iterations ~= 2h30, plus ~62 evaluations
+# rapides (eval_freq=20). Aucun cout GPU.
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseA1_overfit_clean_256bits.yaml
+#========================================================================================
+output_dir: "./runs/phaseA1_overfit_clean_256bits"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 256
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Constant,scaling_min=0.5,epochs=1250
+
+seed: 0
+
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0               # <-- LE correctif : aucune pression de fidelite
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999          # jamais atteint, lambda_d=0 le rend de toute facon inoperant
+
+epochs: 1250                # <-- 1250 x 8 = 10 000 iterations (contre 1 600 avant)
+iter_per_epoch: 50          # plafond jamais atteint ici (dataloader = 8 lots)
+eval_freq: 20
+saveimg_freq: 200
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1250,warmup_lr_init=1e-8,warmup_t=10
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 999999
+finetune_detector_start: 999999
+saveckpt_freq: 999999       # seul checkpoint.pth (ecrase), pas d'accumulation disque

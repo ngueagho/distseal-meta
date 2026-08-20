@@ -1,0 +1,99 @@
+#========================================================================================
+# CONFIG -- "phase 0", nbits=64 (defaut DistSeal), 100% LOCAL CPU.
+#
+# But : reproduire, a nbits=64, la meme experience qui a marche sur RunPod a
+# nbits=256 (cf. posthoc_pixel_256bits_runpod_phase0_puredecode.yaml) --
+# verifier que le meme correctif (retirer TOUTE pression de fidelite/adversariale,
+# lambda_i=0 ET lambda_d=0, augmentation identite, seul lambda_dec pilote
+# l'embedder) permet a bit_acc de decoller au-dessus du hasard (0.5), et pas
+# seulement a 256 bits.
+#
+# 64 bits est la largeur par defaut de DistSeal -- normalement plus facile
+# (capacite du canal plus faible que 256 = HMAC-SHA256). Si le meme
+# comportement (collapse sous pression de fidelite, guerison en phase 0 pure)
+# se reproduit ici, ca renforce l'idee que c'est un probleme general de
+# curriculum d'entrainement, pas une bizarrerie propre a 256 bits.
+#
+# Difference avec la config RunPod : dataset local (corpus-smoketest, 16
+# train / 4 val, contre corpus-colab sur le pod), resolution 64x64 (au lieu de
+# 256x256, comme le tout premier smoketest CPU du projet -- cf.
+# posthoc_pixel_256bits_smoketest.yaml), batch_size=2 (au lieu de 16).
+#
+# Dimensionnement epochs/iter_per_epoch : smoke test chronometre prealable sur
+# cette machine (4 coeurs, pas de GPU) -- 1 epoque (8 iters) = 44.8s (cout fixe
+# import/construction modele domine), 6 epoques (48 iters) sans eval = 74.2s.
+# => cout fixe ~= 39s, ~= 0.73 s/iter d'entrainement pur. Une eval "rapide"
+# (peu d'augmentations, eval_freq) coute ~5s, une eval "complete" (~90
+# augmentations, full_eval_freq) ~25s sur ce jeu de 4 images val 64x64.
+# Avec epochs=300, iter_per_epoch=8 : 2400 iters * 0.73s ~= 1752s d'entrainement
+# + ~9 evals rapides (eval_freq=20, ~45s) + 3 evals completes (full_eval_freq=
+# 100 + derniere epoque, ~75s) + 39s fixe ~= 1911s ~= 32 min. Tient largement
+# dans le budget CPU vise (30-45 min).
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/posthoc_pixel_64bits_local_phase0.yaml
+#========================================================================================
+output_dir: "./runs/local_64bits_phase0"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+#========================================================================================
+# 64x64 : beaucoup plus rapide sur CPU que 256x256 (meme logique que le tout
+# premier smoketest local du projet).
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64                  # <- SEULE difference architecturale avec la version 256 bits
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=50,epochs=300
+
+#========================================================================================
+seed: 0
+
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+# PHASE 0 : AUCUNE pression de fidelite ni adversariale -- seul le decodage
+# pilote l'embedder (meme philosophie que la phase 0 a 256 bits).
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+# 8 iters/epoque = un passage complet sur les 16 images d'entrainement (batch_size=2).
+epochs: 300
+iter_per_epoch: 8
+eval_freq: 20
+saveimg_freq: 20
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=300,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 100
+finetune_detector_start: 2000
+saveckpt_freq: 1000  # pas de snapshots numerotes accumules (cf. incident disque plein RunPod)

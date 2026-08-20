@@ -1,0 +1,117 @@
+#========================================================================================
+# PHASE A1 -- TEST PLANCHER DECISIF, nbits=16 a 64x64, 100% LOCAL CPU.
+#
+# CE QUE CE TEST REMPLACE ET POURQUOI
+# -----------------------------------
+# Premiere tentative : phaseA1_overfit_clean_256bits.yaml (256 bits a 64x64).
+# Abandonnee a l'epoque ~110 apres analyse -- elle etait mal concue. Le facteur
+# determinant pour un filigrane est le nombre de PIXELS DISPONIBLES PAR BIT :
+#
+#   run RunPod (bit_acc 0.61) : 256x256 = 65 536 px / 256 bits = 256 px/bit
+#   A1 256 bits a 64x64       :  64x64  =  4 096 px / 256 bits =  16 px/bit
+#
+# Autrement dit cette premiere config etait SEIZE FOIS PLUS DURE que le run qui
+# n'a lui-meme atteint que 0.61. La presenter comme "les conditions les plus
+# favorables possibles" etait une erreur d'analyse.
+#
+# Deuxieme erreur corrigee ici : reduire le corpus a 16 images n'allege PAS la
+# tache. train.py tire un message aleatoire a chaque iteration (wam.py:94-96,
+# `if msgs is None: msgs = self.get_random_msg(...)`), donc le modele ne peut
+# rien memoriser -- il doit apprendre une vraie fonction encode/decode sur des
+# messages arbitraires. Moins d'images retire seulement la diversite visuelle.
+#
+# Symptome observe sur la tentative abandonnee : loss_decode fige a 0.6947,
+# c'est-a-dire exactement ln(2) = 0.6931, la perte d'un predicteur binaire qui
+# repond 0.5 partout. Le reseau est tombe dans la solution triviale et le
+# gradient s'est eteint. Ce resultat n'est PAS exploitable : il ne permet pas de
+# distinguer "le pipeline est casse" de "la tache est infaisable a cette
+# resolution".
+#
+# LE CHOIX DE 16 BITS
+# -------------------
+#   4 096 px / 16 bits = 256 px/bit  <-- exactement le ratio du run RunPod
+#
+# Meme difficulte intrinseque que le run qui a fonctionne, mais 16x moins de
+# calcul. La question posee devient nette :
+#
+#   * bit_acc decolle  : le pipeline est SAIN. Le blocage constate a 256 bits
+#                        est une affaire de capacite/resolution, pas un bug.
+#                        => phase A2 (courbe de capacite sur GPU, a 256x256).
+#   * bit_acc reste 0.5: le probleme est STRUCTUREL (gradient, appariement
+#                        message/lecture, pipeline). Aucun GPU ne le resoudra.
+#                        => debuguer le code avant toute depense.
+#
+# PIEGE A CONNAITRE -- iter_per_epoch
+# ------------------------------------
+# `iter_per_epoch` est un PLAFOND, pas une cible (train.py:594,
+# `if it >= params.iter_per_epoch: break`). Avec 16 images et batch_size=2 le
+# dataloader ne contient que 8 lots : une epoque vaut TOUJOURS 8 iterations ici.
+# Le seul levier pour allonger l'entrainement est le nombre d'epoques. C'est ce
+# piege qui rendait l'ancien run `overfit_check` bien plus court qu'il n'y
+# paraissait (1 600 iterations reelles, pas 10 000).
+#
+# BUDGET
+# ------
+# 1250 epoques x 8 iterations = 10 000 iterations. ~0.9 s/iter mesure sur cette
+# machine (4 coeurs, pas de GPU) => ~2h30. Aucun cout GPU.
+#
+# Usage:
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseA1_floor_16bits.yaml
+#========================================================================================
+output_dir: "./runs/phaseA1_floor_16bits_sw01"
+
+dataset:
+    train_dir: ./corpus-smoketest/train
+    val_dir: ./corpus-smoketest/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 64
+img_size_val: 64
+img_size: 64
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 16                   # <-- 256 px/bit, le ratio du run RunPod qui a appris
+hidden_size_multiplier: 1
+scaling_w: 0.1
+scaling_w_schedule: Constant,scaling_min=0.1,epochs=1250
+
+seed: 0
+
+batch_size_eval: 2
+batch_size: 2
+workers: 0
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0               # aucune pression de fidelite -- pas de collapse
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 1250                # 1250 x 8 = 10 000 iterations
+iter_per_epoch: 50          # plafond jamais atteint (dataloader = 8 lots)
+eval_freq: 50
+saveimg_freq: 250
+iter_per_valid: 2
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1250,warmup_lr_init=1e-8,warmup_t=10
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 999999
+finetune_detector_start: 999999
+saveckpt_freq: 999999
