@@ -1,0 +1,120 @@
+#========================================================================================
+# PHASE A2 -- LE RATIO PIXELS/BIT EST-IL LA BONNE VARIABLE ? (GPU, RunPod)
+#
+# CE QUE LA PHASE A A ETABLI
+# --------------------------
+# (cf. docs/phaseA-mur-de-capacite.md)
+#   1. Le pipeline n'a aucun bug : une image + un message fixe -> bit_acc=1.000
+#      en 20 pas.
+#   2. Le facteur limitant est la diversite des messages, et c'est un MUR :
+#      15x plus de pas n'apporte que +0.008.
+#   3. Confirme a pleine echelle sur ce volume : runpod_256bits_phase0_puredecode
+#      a tourne 2288 epoques (~457 000 iterations) et a pique a bit_acc=0.6076
+#      a l'epoque 830, puis plus rien pendant 1458 epoques.
+#
+# L'HYPOTHESE QUE CE RUN TESTE
+# ----------------------------
+# Le seul levier restant identifie est le nombre de PIXELS PAR BIT. Deux
+# echelles tres differentes au meme ratio donnent le meme plafond :
+#
+#   RunPod 256x256, 256 bits : 65 536 px / 256 = 256 px/bit -> 0.6076
+#   Local   64x64,  16 bits :  4 096 px /  16 = 256 px/bit -> 0.61-0.71
+#
+# Cette coincidence suggere fortement que px/bit est la bonne variable. Ce run
+# la teste directement en montant le ratio de SEIZE FOIS, a resolution reelle :
+#
+#   256x256, 16 bits : 65 536 px / 16 = 4 096 px/bit
+#
+#   * bit_acc franchit nettement 0.61 -> px/bit EST la variable. On sait alors
+#     quoi faire : bisecter entre 16 et 256 bits pour trouver le point de
+#     fonctionnement utilisable (>=0.99 pour un verdict HMAC fiable), et
+#     dimensionner Omega en consequence.
+#   * bit_acc plafonne encore vers 0.61 -> px/bit N'EST PAS la variable, et
+#     tout le cadrage est a revoir. Resultat negatif, mais decisif.
+#
+# CONTROLE EXPERIMENTAL
+# ---------------------
+# Copie exacte de posthoc_pixel_256bits_runpod_phase0_puredecode.yaml -- le
+# seul run du projet qui ait appris quelque chose -- avec UNE seule difference
+# voulue : nbits 256 -> 16. Tout le reste (corpus, resolution, batch, pertes,
+# augmentation, optimiseur, calendrier de scaling_w) est identique, pour que
+# toute difference de bit_acc soit imputable au seul ratio px/bit.
+#
+# DEUX ECARTS ASSUMES, ET POURQUOI
+# --------------------------------
+#   epochs 900 -> 1200 et t_initial 900 -> 1200 : phase0 avait t_initial=900
+#   mais a tourne 2288 epoques via des reprises successives. Or train.py:498
+#   appelle scheduler.step(epoch) avec l'epoque ABSOLUE : passe t_initial, le
+#   LR est au plancher (1e-6) et l'entrainement est mort. On aligne donc
+#   t_initial sur epochs, et scaling_w_schedule aussi, pour que le calendrier
+#   couvre tout le run. Le pic de phase0 etant a l'epoque 830, 1200 epoques
+#   laissent de la marge au-dela.
+#
+# PRECAUTION DE LECTURE
+# ---------------------
+# Ne RIEN conclure avant l'epoque ~800. Sur ce projet les courbes sont tres
+# bruitees et les lectures precoces trompeuses : un run local paraissait mort
+# aux epoques 105 et 208 et a pique a l'epoque 1064. Toujours rapporter le
+# MEILLEUR bit_acc atteint, jamais celui de la derniere epoque.
+#
+# Usage (sur le pod, depuis /workspace/code-memoire) :
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseA2_pxbit_16bits_256px.yaml
+#========================================================================================
+output_dir: "/workspace/runs/phaseA2_64bits_256px"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64                   # 1024 px/bit -- la valeur PAR DEFAUT de DistSeal (train.py:109)
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=1200
+
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 1200
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 100
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1200,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 200
+finetune_detector_start: 2000
+saveckpt_freq: 999999       # seul checkpoint.pth, pas d'accumulation -- le
+                            # volume avait ete rempli par des snapshots numerotes
