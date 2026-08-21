@@ -108,6 +108,16 @@ def get_parser():
     group = parser.add_argument_group('Image and watermark parameters')
     aa("--nbits", type=int, default=64,
        help="Number of bits used to generate the message. If 0, no message is used.")
+    aa("--msg_curriculum_epochs", type=int, default=0,
+       help="CipherMark -- curriculum sur l'entropie du message. Si > 0, les k "
+            "premiers bits du message sont tires au hasard et les nbits-k autres "
+            "sont fixes, avec k qui croit lineairement de 0 a nbits sur ce nombre "
+            "d'epoques. Equivaut a un vivier de messages qui passe de 1 a 2^nbits. "
+            "Sert a sortir du point stationnaire trivial : avec des messages "
+            "uniformement aleatoires, un extracteur qui sort des logits nuls a un "
+            "gradient d'esperance NULLE (E[sigmoid(0) - y] = 0), donc la solution "
+            "triviale est un vrai point fixe dont rien ne fait sortir. 0 = "
+            "desactive (comportement d'origine).")
     aa("--hidden_size_multiplier", type=float, default=1,
          help="Hidden size multiplier for the message processor")
     aa("--img_size", type=int, default=256,
@@ -575,6 +585,45 @@ def main(params):
     print('Total time {}'.format(total_time_str))
 
 
+_CURRICULUM_BASE_MSG = None
+
+
+def build_curriculum_msgs(params, epoch: int, bsz: int, device):
+    """CipherMark -- curriculum sur l'entropie du message.
+
+    Retourne None (= comportement d'origine, message uniformement aleatoire)
+    quand le curriculum est desactive ou termine. Sinon retourne un batch de
+    messages dont seuls les k premiers bits sont aleatoires, les nbits-k autres
+    etant figes, avec k croissant lineairement de 0 a nbits.
+
+    Pourquoi : avec des messages uniformement aleatoires, un extracteur qui sort
+    des logits nuls a un gradient d'esperance nulle -- E[sigmoid(0) - y] = 0
+    puisque y est un bit uniforme. La solution triviale (repondre 0.5 partout,
+    loss = ln 2 = 0.6931) est donc un VRAI point stationnaire, et un modele qui y
+    tombe n'a aucune raison d'en sortir. C'est le collapse observe a 64 et
+    128 bits (loss figee a la 4e decimale sur 67 000 iterations).
+
+    En demarrant a k=0 -- un seul message possible -- le gradient n'est plus
+    d'esperance nulle et le modele apprend immediatement : mesure en phase A,
+    bit_acc = 1.000 en 20 pas sur un message fixe. On elargit ensuite.
+    """
+    global _CURRICULUM_BASE_MSG
+    ce = getattr(params, "msg_curriculum_epochs", 0)
+    nbits = params.nbits
+    if ce <= 0 or nbits <= 0 or epoch >= ce:
+        return None
+
+    if _CURRICULUM_BASE_MSG is None:
+        g = torch.Generator().manual_seed(params.seed + 20260821)
+        _CURRICULUM_BASE_MSG = torch.randint(0, 2, (1, nbits), generator=g).float()
+
+    k = int(round(nbits * epoch / ce))          # bits aleatoires a cette epoque
+    msgs = _CURRICULUM_BASE_MSG.repeat(bsz, 1).clone()
+    if k > 0:
+        msgs[:, :k] = torch.randint(0, 2, (bsz, k)).float()
+    return msgs.to(device)
+
+
 def train_one_epoch(
     wam: Wam,
     optimizers: List[torch.optim.Optimizer],
@@ -625,7 +674,10 @@ def train_one_epoch(
             imgs = imgs.to(device, non_blocking=True)
 
             # forward
-            outputs = wam(imgs, masks, is_video=False, is_detection_loss=(params.lambda_det > 0))
+            curriculum_msgs = build_curriculum_msgs(
+                params, epoch, imgs.shape[0], device)
+            outputs = wam(imgs, masks, msgs=curriculum_msgs, is_video=False,
+                          is_detection_loss=(params.lambda_det > 0))
             outputs["preds"] /= params.temperature
 
             # last layer is used for gradient scaling
