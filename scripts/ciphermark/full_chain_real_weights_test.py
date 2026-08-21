@@ -344,11 +344,14 @@ def main() -> int:
     summary_lines.append("")
     summary_lines.append("=" * 100)
     summary_lines.append(
-        "NOTE: checkpoint encore en entrainement (bit_acc ~0.60 au moment de ce test, "
-        "faible pression de fidelite -> images visiblement perturbees). Un verdict "
-        "different de AUTHENTIC en Partie A/B n'est PAS un bug de ce script : c'est "
-        "l'etat reel et attendu de la chaine avec ce checkpoint. Les seuils du "
-        "verifieur (CipherMarkThresholds) n'ont PAS ete modifies pour ce test."
+        "NOTE: le verdict depend entierement de la qualite du canal, pas de ce "
+        "script -- les seuils du verifieur (CipherMarkThresholds) ne sont JAMAIS "
+        "modifies. Avec un checkpoint dont bit_acc plafonne (~0.60, cas des runs "
+        "a 256 bits d'aout 2026), la Partie A rend 0/5 AUTHENTIC : l'avalanche "
+        "HMAC fait diverger le tag des le premier bit errone. Avec un canal sain "
+        "(bit_acc ~0.999, cf. phaseA2_64bits_stable), elle rend 5/5 AUTHENTIC a "
+        "d=0 bit d'erreur. Un echec ici n'est donc pas un bug : c'est la mesure "
+        "fidele de l'etat du canal."
     )
     os.makedirs(os.path.dirname(args.summary_path) or ".", exist_ok=True)
     with open(args.summary_path, "w") as f:
