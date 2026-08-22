@@ -110,7 +110,11 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=20, help="nb images synthetiques")
     ap.add_argument("--keys-dir", default=None,
                     help="dossier contenant s_master.bin et k_secret.bin")
-    ap.add_argument("--n-bits", type=int, default=256)
+    ap.add_argument("--n-bits", type=int, default=64,
+                    help="largeur d Omega. 64 et non 256 : mesure du 2026-08-21, "
+                         "cf. docs/a-faire-memoire.md -- a 256 bits le canal "
+                         "plafonne (bit_acc 0.61, 0/5 AUTHENTIC), a 64 il rend "
+                         "5/5 a zero bit d erreur.")
     ap.add_argument("--device", default="cpu")
     args = ap.parse_args()
 

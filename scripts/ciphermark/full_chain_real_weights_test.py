@@ -4,22 +4,30 @@ Premier test de bout en bout de CipherMark avec le VRAI Wam entraine.
 
 Contexte : `tests/ciphermark/test_pipeline.py` valide toute la mecanique
 (boucle de point fixe, registre, verifieur) mais avec un `FakeWam` -- un
-tatoueur jouet qui ecrit Omega en clair dans les pixels. Ce script est le
-premier a faire transiter un Omega reel par un embedder/extracteur DistSeal
-REELLEMENT entraines (checkpoint `runpod_256bits_phase0_puredecode`,
-nbits=256, bit_acc ~0.60 au moment ou ce script a ete ecrit -- checkpoint
-encore en entrainement, PAS le resultat final de la these).
+tatoueur jouet qui ecrit Omega en clair dans les pixels. Ce script fait
+transiter un Omega reel par un embedder/extracteur DistSeal REELLEMENT
+entraines.
 
-Ce que ce script prouve (ou pas -- on rapporte honnetement) :
-  1. La chaine complete (embed -> registre -> verify) tourne sans planter
-     avec des poids reels, sur CPU.
+Ce que ce script mesure :
+  1. La chaine complete (embed -> registre -> verify) de bout en bout, avec
+     des poids reels, sur CPU.
   2. Propriete centrale de la these -- variabilite par utilisateur : la
-     MEME image, sous deux jeux de cles differents ("deux utilisateurs"),
-     produit deux Omega/watermarks differents, chacun verifiable sous ses
-     propres cles et rejete sous les mauvaises cles/registre.
-  3. Round-trip honnete : avec bit_acc ~0.60 (pas d'augmentation/robustesse
-     entrainee), le verdict peut ne PAS atteindre AUTHENTIC -- c'est
-     attendu et rapporte tel quel, sans affaiblir les seuils du verifieur.
+     MEME image, sous deux jeux de cles differents, produit deux
+     Omega/watermarks differents, chacun verifiable sous ses propres cles et
+     rejete sous les mauvaises.
+  3. Le registre : un nonce inconnu doit lever KeyError.
+
+Le verdict depend ENTIEREMENT de la qualite du canal, jamais des seuils --
+`CipherMarkThresholds` n'est pas modifie. Deux resultats de reference :
+
+  checkpoint 256 bits (bit_acc 0.61, aout 2026) -> 0/5 AUTHENTIC,
+      BER 39-55 %, point fixe plafonne a 3 iterations sans converger.
+  checkpoint phaseA2_64bits_stable (bit_acc 0.9998) -> 5/5 AUTHENTIC,
+      d = 0 bit d'erreur, p = 5.42e-20, point fixe converge en 1 iteration.
+
+L'ecart tient a l'avalanche HMAC : un seul bit errone sur Omega fait diverger
+le tag recalcule d'environ 50 %. La chaine exige donc un canal quasi parfait,
+la ou un tatouage classique tolere des erreurs. Voir docs/a-faire-memoire.md.
 
 Usage (CPU uniquement) :
     python -m scripts.ciphermark.full_chain_real_weights_test \
@@ -165,7 +173,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--checkpoint", type=str, default="runs/checkpoint.pth")
     ap.add_argument("--val-dir", type=str, default="corpus-colab/val")
-    ap.add_argument("--n-bits", type=int, default=256)
+    ap.add_argument("--n-bits", type=int, default=64,
+                    help="largeur d Omega. 64 et non 256 : mesure du 2026-08-21, "
+                         "cf. docs/a-faire-memoire.md -- a 256 bits le canal "
+                         "plafonne (bit_acc 0.61, 0/5 AUTHENTIC), a 64 il rend "
+                         "5/5 a zero bit d erreur.")
     ap.add_argument("--n-images", type=int, default=5,
                      help="nb d'images distinctes pour le test multi-utilisateurs")
     ap.add_argument("--seed", type=int, default=0)

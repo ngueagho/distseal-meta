@@ -114,7 +114,11 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--data-dir", default=None,
                     help="dossier d'images reelles (sinon: synthetiques)")
-    ap.add_argument("--n-bits", type=int, default=256)
+    ap.add_argument("--n-bits", type=int, default=64,
+                    help="largeur d Omega. 64 et non 256 : mesure du 2026-08-21, "
+                         "cf. docs/a-faire-memoire.md -- a 256 bits le canal "
+                         "plafonne (bit_acc 0.61, 0/5 AUTHENTIC), a 64 il rend "
+                         "5/5 a zero bit d erreur.")
     ap.add_argument("--rs-nsym", type=int, default=32,
                     help="octets de parite RS (corrige nsym/2 octets)")
     ap.add_argument("--backbone", choices=("dino", "dct"), default="dino",

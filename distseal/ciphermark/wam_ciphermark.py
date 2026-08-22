@@ -52,7 +52,11 @@ class CipherMarkKeys:
 
 @dataclass
 class CipherMarkConfig:
-    n_bits: int = 256
+    # 64 et pas 256 -- voir la justification chiffree dans
+    # distseal/ciphermark/witness.py (WitnessConfig.n_bits) : a 256 bits le
+    # canal plafonne a bit_acc 0.61 et la chaine rend 0/5 AUTHENTIC, a 64 bits
+    # elle rend 5/5 a zero bit d'erreur, pour une qualite d'image identique.
+    n_bits: int = 64
     block_size: int = 16
     max_fixed_point_iters: int = 3
     # Tolerance en bits APRES correction Reed-Solomon. 0 = egalite exacte,
