@@ -6,9 +6,102 @@ sont, il n'y a rien a recalculer ni a relancer.
 Sources brutes :
 - `docs/phaseA-mur-de-capacite.md` -- diagnostic local (phase A)
 - `runpod-results/phaseA2/` -- logs des 5 runs + `RESULTATS.md`
-- `runs/eval_robustness_64bits.json` -- les 17 conditions d'attaque
+- `runs/eval_robustness_64bits.json` -- les 17 conditions d'attaque passives
+- `runs/eval_attaques_actives.json` -- les 4 attaques actives
+- `runs/mesure_derive_hash.json` -- derive du hash perceptuel
 - `runs/full_chain_64bits_summary.txt` -- la chaine de bout en bout
 - Drive : `gdrive_local:ciphermark/runpod_runs/phaseA2_2026-08-21/`
+
+---
+
+## LE PLUS IMPORTANT -- la liaison au contenu ne fonctionne pas
+
+Trouve le 2026-08-22 en testant les attaques ACTIVES. C'est le resultat le plus
+lourd de consequences du projet, et il touche l'argument central du memoire.
+
+### Le symptome
+
+`scripts/ciphermark/eval_attaques_actives.py`, 8 images :
+
+| attaque | faux AUTHENTIC | BER moyen | verdicts |
+| --- | --- | --- | --- |
+| reference honnete | 8/8 (normal) | 0.0000 | authentic=8 |
+| **A. transplantation** | **8/8** | **0.0078** | **authentic=8** |
+| B. rejeu (autre nonce) | 0/8 | 0.4805 | heavy_edit=2, no_wm=6 |
+| C. mixup | 0/8 | 0.4434 | heavy_edit=3, no_wm=5 |
+| D. collage vu par A | 0/8 | 0.2871 | heavy_edit=5, light_edit=3 |
+| D. collage vu par B | 0/8 | 0.2949 | heavy_edit=4, light_edit=3, no_wm=1 |
+
+Coller le filigrane d'une image sur une AUTRE image produit 8 verdicts
+AUTHENTIC sur 8. C'est precisement l'attaque que la dependance au contenu
+devait rendre impossible -- et c'est l'argument oppose a WOUAF et WMAdapter,
+dont le code utilisateur est arbitraire donc transplantable.
+
+Les trois autres attaques echouent correctement : le reste de la construction
+tient.
+
+### La cause immediate : Reed-Solomon sur-corrige
+
+`RSCodec(nsym=16)` corrige jusqu'a `nsym//2 = 8` octets. Le hash de 64 bits en
+fait exactement **8**. La capacite de correction egale la taille de la donnee,
+donc la parite stockee au registre suffit a reconstituer le hash de reference
+SANS aucune information de l'image. Verifie experimentalement :
+
+    hash etranger 70c127684ee31842 -> corrige == reference ? True
+    hash etranger d72a38edb03d4271 -> corrige == reference ? True
+    hash etranger 5f619907d0b7fa72 -> corrige == reference ? True
+
+Le verifieur calcule `h_hat = RS_corrige(PHash(image recue), parite)`, mais
+cette correction **ignore completement** `PHash(image recue)`.
+
+### La cause profonde : le hash perceptuel ne separe pas les images
+
+Mesure sur 30 images (`scripts/ciphermark/mesure_derive_hash.py`), en bits :
+
+| cas | bits differents / 64 | soit | plage |
+| --- | --- | --- | --- |
+| marquage de la MEME image | 19.07 | 29.8 % | 8 a 35 |
+| une AUTRE image | 28.47 | 44.5 % | 18 a 35 |
+
+**Marquer une image change 30 % des bits de son hash ; une image totalement
+differente n'en change que 44 %.** Les plages se recouvrent de 18 a 35 bits des
+deux cotes : aucun seuil ne peut separer les deux cas.
+
+Aucune valeur de `nsym` ne peut donc sauver la construction. Il faudrait
+corriger 30 % d'erreurs tout en refusant d'en corriger 44 % -- c'est
+mathematiquement impossible avec ces distributions.
+
+### Pourquoi la chaine semblait fonctionner
+
+Le point fixe convergeait en 1 iteration et le test rendait 5/5 AUTHENTIC,
+uniquement parce que Reed-Solomon reconstruisait le hash de reference a partir
+de la parite seule. **La liaison au contenu n'a jamais ete testee -- elle etait
+court-circuitee.** Les 5/5 AUTHENTIC restent vrais pour l'aller-retour honnete,
+mais ils ne prouvent rien sur l'anti-transplantation.
+
+### Ce qu'il faut faire
+
+Le probleme est le HASH, pas le code correcteur. Un hash utilisable doit etre
+quasi invariant au marquage -- quelques bits de derive, pas vingt. Trois pistes,
+par ordre de promesse :
+
+1. **Stabiliser le hash.** `RandomHyperplaneLSH` binarise les features DINOv2
+   par projections aleatoires ; les bits proches d'une frontiere de decision
+   sont fragiles. Utiliser les composantes principales, ou quantifier avec une
+   marge (zone morte), reduirait beaucoup la derive.
+2. **Calculer le hash sur les basses frequences** de l'image, la ou le
+   filigrane ecrit peu.
+3. **Renoncer a la liaison par hash** et lier Omega au contenu autrement (par
+   exemple un identifiant enregistre plutot que derive).
+
+### Comment le rediger
+
+Ne pas le cacher : c'est un resultat de recherche, et le trouver soi-meme vaut
+mieux que de ne pas l'avoir teste. La formulation honnete est que la
+construction reposait sur un artefact du code correcteur, que le test d'attaque
+active l'a revele, et que la mesure de derive en explique la cause. MetaSeal
+teste exactement ces attaques (section 3.1 : replay, mixup, PGD) -- ne pas les
+tester aurait ete une lacune visible pour un jury.
 
 ---
 
@@ -94,6 +187,13 @@ HiDDeN -- precision 0.987 a 32 bits, ~0.50 a 512 bits -- mais avec **deux points
 de mesure seulement**. La courbe complete sur WAM ne semble pas publiee.
 
 ### Bloc 3 -- La chaine CipherMark verifie de bout en bout
+
+**A LIRE AVEC LA SECTION SUR LA LIAISON AU CONTENU** (en tete de ce fichier) :
+les 5/5 AUTHENTIC ci-dessous sont exacts pour l'aller-retour honnete, mais ils
+ne prouvent RIEN sur l'anti-transplantation -- Reed-Solomon reconstruisait le
+hash de reference a partir de la parite seule. La partie B ci-dessous montre
+que deux cles differentes donnent des Omega differents, ce qui reste vrai ;
+elle ne montre pas que le filigrane est intransplantable, ce qui est faux.
 
 Checkpoint `phaseA2_64bits_stable` (epoch 1200), 5 images reelles de
 `corpus-colab/val`, PHash DINOv2-small **reel** (pas le repli DCT).
