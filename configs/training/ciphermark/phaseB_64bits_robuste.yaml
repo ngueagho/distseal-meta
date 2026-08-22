@@ -1,0 +1,126 @@
+#========================================================================================
+# PHASE B -- ROBUSTESSE AU RECADRAGE, par specialisation du canal 64 bits.
+#
+# CE QUE CETTE CONFIG CORRIGE
+# ---------------------------
+# L'evaluation du 2026-08-21 (50 images, 17 conditions,
+# runs/eval_robustness_64bits.json) montre un canal excellent PARTOUT sauf en
+# geometrie :
+#
+#   jpeg q30      bit_acc 0.9997   100 % AUTHENTIC   <- mieux que MetaSeal (q84)
+#   flou k5       bit_acc 0.9766   100 %
+#   resize 0.5    bit_acc 0.9438    92 %
+#   crop 0.9      bit_acc 0.6259     0 %   <-- le trou
+#   crop 0.5      bit_acc 0.4947     0 %   <-- hasard pur
+#
+# La cause est connue et n'est pas une limite de la methode : le modele a ete
+# entraine avec `identity_only.yaml`, donc il n'a JAMAIS vu une seule attaque.
+# C'etait un choix volontaire pour isoler le collapse pendant le diagnostic.
+#
+# Point important etabli par la meme evaluation : la colonne `hash ok` vaut
+# 100 % dans les 17 conditions, y compris sous recadrage. Le hash perceptuel
+# DINOv2 corrige par Reed-Solomon est donc parfaitement stable, et la
+# construction cryptographique n'est jamais en cause. L'echec est entierement
+# imputable au canal -- c'est bien lui, et lui seul, qu'il faut corriger.
+#
+# POURQUOI ON SPECIALISE AU LIEU DE REPARTIR DE ZERO
+# ---------------------------------------------------
+# Entrainer d'emblee avec les 14 augmentations d'all_augs_v3 est nettement plus
+# dur qu'avec l'identite seule -- exactement le type de configuration qui a
+# produit le collapse vers la solution triviale (cf. docs/phaseA-mur-de-capacite).
+# On part donc du checkpoint qui atteint deja bit_acc 0.9998 et on lui apprend
+# a resister, ce qui est plus sur et plus rapide.
+#
+#   lancement : train.py --config <ce fichier> \
+#                        --resume_from runs/ciphermark_64bits_checkpoint.pth
+#
+# `--resume_from` ne charge QUE les poids et laisse start_epoch a 0, donc le
+# calendrier de LR repart proprement du debut -- c'est voulu.
+#
+# LES ECARTS PAR RAPPORT A phaseA2_64bits_stable, ET POURQUOI
+# ------------------------------------------------------------
+#   augmentation_config : identity_only -> all_augs_v3   (l'objet du run)
+#   lr                  : 2e-4 -> 1e-4    specialisation, pas apprentissage
+#                                         initial : on ne veut pas detruire ce
+#                                         qui marche deja
+#   epochs / t_initial  : 1200 -> 600     le canal est deja forme
+#   scaling_w           : Constant 0.1152 la valeur EFFECTIVE atteinte a
+#                                         l'epoque 1200 du run source (le
+#                                         calendrier Cosine y avait deja
+#                                         converge). Inutile de rejouer la
+#                                         decroissance ; la figer evite en plus
+#                                         de faire varier deux choses a la fois.
+#   warmup_t            : 50 conserve     c'est lui qui evite le collapse
+#
+# CE QU'ON ATTEND, ET COMMENT LIRE L'ECHEC
+# -----------------------------------------
+# Objectif : crop 0.9 passe de 0 % a un taux exploitable, sans que jpeg/flou/
+# luminosite ne regressent. Un compromis est probable -- bit_acc sans attaque
+# pourrait descendre sous 0.9998, et c'est acceptable tant qu'il reste
+# au-dessus de 0.99, seuil en deca duquel l'avalanche HMAC casse la
+# verification.
+#
+# Si bit_acc s'effondre vers 0.5 : c'est le collapse, pas la difficulte de la
+# tache -- reduire encore le lr ou n'activer les augmentations geometriques
+# que progressivement.
+#
+# A l'issue, relancer :
+#   PYTHONPATH=. python3 scripts/ciphermark/eval_recovery_robustness.py \
+#       --checkpoint <nouveau checkpoint> --n-images 50
+#========================================================================================
+output_dir: "/workspace/runs/phaseB_64bits_robuste"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+scaling_w: 0.1152
+scaling_w_schedule: Constant,scaling_min=0.1152,epochs=600
+
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 600
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 100
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=600,warmup_lr_init=1e-8,warmup_t=50
+optimizer: AdamW,lr=1e-4
+full_eval_freq: 200
+finetune_detector_start: 2000
+saveckpt_freq: 999999
