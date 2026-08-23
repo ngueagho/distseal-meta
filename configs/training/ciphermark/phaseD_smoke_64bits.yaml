@@ -1,0 +1,70 @@
+# Phase D -- test de fumee du conditionnement du decodeur sur Omega.
+#
+# Question posee, une seule : la precision binaire decolle-t-elle avec un
+# Omega VARIABLE ? Rien d'autre. Ni la qualite d'image, ni la robustesse.
+#
+# Pourquoi le resultat est interpretable malgre la brievete du run :
+# Omega est tire aleatoirement pour CHAQUE image, et la bit_acc est mesuree
+# contre l'Omega de cette image-la. Un decodeur qui ignorerait Omega -- parce
+# que le conditionneur ne serait pas branche, pas dans l'optimiseur, ou
+# neutralise par DDP -- resterait cloue a 0.50, la valeur du hasard. Toute
+# valeur nettement superieure prouve que l'information d'Omega transite
+# reellement par le conditionneur jusqu'aux pixels. Le test porte donc sa
+# propre condition de controle.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseD_smoke_64bits.yaml
+
+run_dir: /workspace/runs/phaseD_smoke
+
+imagenet:
+    # ImageFolder exige des sous-dossiers de classes ; corpus-colab est plat.
+    # /workspace/corpus_if expose le meme corpus sous une classe unique.
+    data_dir: /workspace/corpus_if
+    batch_size: 4
+
+model: dc-ae-f64c128-in-1.0
+
+# --- coeur de la phase D ---------------------------------------------------
+omega_nbits: 64
+
+# --- watermarker enseignant ------------------------------------------------
+# false : le WAM a ete entraine en post-hoc PIXEL sur du 256x256 RGB. Il ne
+# peut pas s'appliquer au latent f64c128, qui fait 128 canaux en 4x4.
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+# valeur EFFECTIVE a l'epoque 1200, pas la valeur statique 0.5 de la config
+# d'origine -- l'ecart entre les deux a deja fausse deux mesures.
+watermarker_scaling_w: 0.1152
+
+# --- pertes ----------------------------------------------------------------
+# 1.0 au lieu du defaut 0.01 : ce run cherche un signal net et rapide sur le
+# message, pas un bon compromis visuel.
+extractor_weight: 1.0
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+# --- duree -----------------------------------------------------------------
+max_steps: 400
+num_batches: 10
+evaluate_steps: 100
+save_checkpoint_steps: 200
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: cosine_annealing_with_rampup
+    warmup_steps: 50
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.0001
+    name: adamw
