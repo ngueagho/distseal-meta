@@ -67,9 +67,28 @@ def _chacha20_stream(seed: bytes, nonce: bytes, nbytes: int) -> bytes:
         cipher = _ChaCha20.new(key=seed, nonce=nonce)
         return cipher.encrypt(b"\x00" * nbytes)
 
-    # fallback AES-CTR (a eviter en prod, mais utile pour CI sans pycrypto)
-    # NB: on n'a pas AES en stdlib non plus... du coup on derive avec SHA256
-    # ca marche pour les tests mais ce n'est pas un vrai stream cipher.
+    # --- repli HMAC-SHA256 en mode compteur --------------------------------
+    # Ce n'est PAS un cryptosysteme faible : c'est la construction HMAC-DRBG
+    # (NIST SP 800-90A), un generateur pseudo-aleatoire solide, simplement
+    # plus lent que ChaCha20.
+    #
+    # Le danger n'est pas sa qualite, c'est sa DIVERGENCE. Il produit un
+    # keystream different de celui de ChaCha20, donc un Omega different pour
+    # la meme cle et le meme nonce. Une image marquee sur une machine equipee
+    # de pycryptodome echoue alors a la verification sur une machine qui ne
+    # l'a pas -- sans erreur, seulement un mauvais BER, qu'on attribuerait au
+    # canal ou au modele. C'est pourquoi le repli est refuse par defaut et
+    # doit etre demande explicitement.
+    if not os.environ.get("CIPHERMARK_PRG_FALLBACK"):
+        raise RuntimeError(
+            "pycryptodome est absent : le PRG basculerait sur le repli "
+            "HMAC-CTR, qui produit un keystream DIFFERENT de ChaCha20 et donc "
+            "un Omega different pour la meme cle. Les marques posees ailleurs "
+            "deviendraient inverifiables ici, en silence.\n"
+            "  correctif  : pip install pycryptodome\n"
+            "  contourner : CIPHERMARK_PRG_FALLBACK=1 (tests hors-ligne "
+            "uniquement -- jamais pour produire ou verifier une marque "
+            "destinee a une autre machine)")
     blocks = []
     counter = 0
     while sum(len(b) for b in blocks) < nbytes:
@@ -88,6 +107,17 @@ def prg(seed: bytes, nonce: bytes, nbytes: int) -> bytes:
     messages differents (cf. cours OTP).
     """
     return _chacha20_stream(seed, nonce, nbytes)
+
+
+def prg_backend() -> str:
+    """Quel generateur sert reellement : "chacha20" ou "hmac-ctr".
+
+    A journaliser dans toute mesure qui depend d'Omega. Deux machines qui ne
+    repondent pas la meme chose ne produisent pas les memes marques.
+    """
+    if _HAS_PYCRYPTO:
+        return "chacha20"
+    return "hmac-ctr" if os.environ.get("CIPHERMARK_PRG_FALLBACK") else "indisponible"
 
 
 def random_seed(n: int = 32) -> bytes:
