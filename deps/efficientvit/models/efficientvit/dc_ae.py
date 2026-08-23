@@ -436,13 +436,19 @@ class DCAE(nn.Module):
     def forward(self, x: torch.Tensor, global_step: int, watermarker=None, msg=None) -> torch.Tensor:
         x = self.encoder(x)
         if watermarker is not None and msg is not None and watermarker.latent_watermarker:
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            # CipherMark : msg peut etre (1, nbits) -- un message unique partage
+            # par le lot, cas DistSeal d'origine -- ou deja (B, nbits), un
+            # Omega par image. Sans ce test, repeat() produirait (B*B, nbits).
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1 else msg).to(x.device)
             preds_w = watermarker.embedder(x, msg_batch)
             x = watermarker.blender(x, preds_w)
         x = self.decoder(x)
         if watermarker is not None and msg is not None and not watermarker.latent_watermarker:
             x = (x * 0.5 + 0.5).clamp(0, 1)  # to [0,1]
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            # CipherMark : msg peut etre (1, nbits) -- un message unique partage
+            # par le lot, cas DistSeal d'origine -- ou deja (B, nbits), un
+            # Omega par image. Sans ce test, repeat() produirait (B*B, nbits).
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1 else msg).to(x.device)
             # if watermarker.embedder.yuv:  # take y channel only
             #     preds_w = watermarker.embedder(watermarker.rgb2yuv(x)[:, 0:1], msg_batch)
             # else:

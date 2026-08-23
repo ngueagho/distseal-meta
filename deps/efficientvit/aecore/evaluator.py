@@ -60,6 +60,11 @@ class EvaluatorConfig:
     resolution: int = 256
     amp: str = "fp32"  # "bf16"
 
+    # CipherMark phase D : largeur d'Omega pour le conditionnement du decodeur.
+    # 0 = desactive, comportement DistSeal d'origine (un message fixe grave
+    # dans les poids). > 0 = le decodeur est conditionne sur un Omega variable.
+    omega_nbits: int = 0
+
     # dataset
     dataset: str = "imagenet"
     imagenet: ImageNetDataProviderConfig = field(
@@ -128,6 +133,41 @@ class Evaluator:
         # if cfg.channels_last:
         #     model = model.to(memory_format=torch.channels_last)
 
+        # --- CipherMark phase D : conditionnement du decodeur sur Omega -------
+        # DOIT rester ici : avant l'enveloppe DDP (qui fige la liste des
+        # parametres) et avant setup_optimizer(). Un conditionneur cree plus
+        # tard -- par exemple dans le bloc watermarker du Trainer -- serait
+        # absent de l'optimiseur et non synchronise par DDP : il ne
+        # s'entrainerait pas, et sans aucune erreur pour le signaler.
+        # Le reference_network a deja ete copie (deepcopy plus haut), il reste
+        # donc non conditionne : c'est lui qui produit la cible post-hoc.
+        self.omega_conditioner = None
+        if getattr(cfg, "omega_nbits", 0) > 0:
+            from distseal.ciphermark.conditioner import (
+                OmegaConditioner, decouvre_etages)
+
+            model = model.cuda()
+            with torch.no_grad():
+                sonde = torch.zeros(1, 3, cfg.resolution, cfg.resolution).cuda()
+                etages = decouvre_etages(model.decoder, model.encoder(sonde))
+            if not etages:
+                raise RuntimeError(
+                    "aucun etage conditionnable trouve dans le decodeur "
+                    f"{type(model.decoder).__name__}")
+            cond = OmegaConditioner(
+                nbits=cfg.omega_nbits,
+                channels=[c for _, _, c in etages]).cuda()
+            cond.attach([m for _, m, _ in etages])
+            # sous-module du reseau : l'optimiseur le voit via
+            # network.parameters(), et il est sauve dans le state_dict.
+            model.omega_conditioner = cond
+            self.omega_conditioner = cond
+            if is_master():
+                print(f"[CipherMark] decodeur conditionne sur Omega "
+                      f"({cfg.omega_nbits} bits) -- {len(etages)} etages "
+                      f"{[c for _, _, c in etages]}, "
+                      f"{cond.n_parametres()/1e6:.2f} M parametres")
+
         if is_dist_initialized():
             self.model = nn.parallel.DistributedDataParallel(
                 model.cuda(), device_ids=[get_dist_local_rank()], find_unused_parameters=True
@@ -162,6 +202,22 @@ class Evaluator:
     @property
     def network(self) -> DCAE:
         return self.model.module if is_parallel(self.model) else self.model
+
+    def _msg_eval(self, taille: int) -> torch.Tensor:
+        """Le message utilise pour la validation.
+
+        Sans conditionnement : le message fixe, (1, nbits).
+        Avec conditionnement : un Omega par image, tire DETERMINISTEMENT. Un
+        tirage different a chaque epoque ferait varier la bit_acc de validation
+        pour une raison etrangere a l'apprentissage, et rendrait les courbes
+        incomparables d'une epoque a l'autre.
+        """
+        if self.omega_conditioner is None:
+            return self.msg
+        g = torch.Generator(device=torch.device("cuda"))
+        g.manual_seed(1234567)
+        return torch.randint(0, 2, (taille, self.cfg.omega_nbits),
+                             device=torch.device("cuda"), generator=g)
     
     @property
     def reference_network(self) -> DCAE:
@@ -225,8 +281,13 @@ class Evaluator:
                 #     images = images.to(memory_format=torch.channels_last)
                 # forward
                 with torch.autocast(device_type="cuda", dtype=self.amp_dtype, enabled=True):
-                    x_wm_inmodel, loss, _ = self.model(images, global_step=0)
-                    x_wm_posthoc, _, _ = self.reference_network(images, global_step=0, watermarker=self.watermarker, msg=self.msg)
+                    msg_lot = self._msg_eval(images.shape[0])
+                    if self.omega_conditioner is not None:
+                        with self.omega_conditioner.omega(msg_lot):
+                            x_wm_inmodel, loss, _ = self.model(images, global_step=0)
+                    else:
+                        x_wm_inmodel, loss, _ = self.model(images, global_step=0)
+                    x_wm_posthoc, _, _ = self.reference_network(images, global_step=0, watermarker=self.watermarker, msg=msg_lot)
                     x_non_wm, _, _ = self.reference_network(images, global_step=0)
 
                     # Losses
@@ -297,7 +358,7 @@ class Evaluator:
                 if self.watermarker is not None:
                     watermark_logits = self.watermarker.detect(images_pred_uint8.float() / 255., is_video=False)["preds"][:, 1:]
                     pred_bits = (watermark_logits > 0).float()
-                    bit_acc = (pred_bits == self.msg).cpu().numpy().astype(np.float32).mean(1)
+                    bit_acc = (pred_bits == msg_lot).cpu().numpy().astype(np.float32).mean(1)
                     bit_acc_stats.add_data(bit_acc)
                 if self.cfg.compute_psnr:
                     psnr.add_data(images_ref_uint8, images_pred_uint8)

@@ -125,6 +125,13 @@ class Trainer(Evaluator):
             g = torch.Generator(device=torch.device("cuda"))
             g.manual_seed(cfg.watermarker_seed)
             self.msg = torch.randint(0, 2, (1, msg.shape[1]), device=torch.device("cuda"), generator=g)
+            # CipherMark phase D : le conditionneur et le watermarker doivent
+            # parler de la meme largeur de message, sinon l'incoherence ne se
+            # verrait qu'a l'execution, sur une erreur de forme obscure.
+            if self.omega_conditioner is not None and cfg.omega_nbits != msg.shape[1]:
+                raise ValueError(
+                    f"omega_nbits={cfg.omega_nbits} mais le watermarker "
+                    f"{cfg.watermarker_ckpt_path} porte {msg.shape[1]} bits")
             for param in watermarker.parameters():
                 param.requires_grad = False
             # if is_dist_initialized():
@@ -153,6 +160,27 @@ class Trainer(Evaluator):
                     f.write(f"{self.network}")
         if is_dist_initialized():
             dist_barrier()
+
+    def _msg_du_lot(self, taille: int) -> torch.Tensor:
+        """Le message a graver pour ce lot.
+
+        Sans conditionnement : le message fixe de DistSeal, (1, nbits) -- le
+        meme pour toutes les images et pour tout l'entrainement.
+
+        Avec conditionnement (phase D) : un Omega ALEATOIRE par image,
+        (B, nbits). Le tirage aleatoire est deliberé. Le decodeur doit
+        apprendre une seule chose -- porter un Omega quelconque -- et non
+        apprendre a le calculer depuis le contenu. La liaison au contenu
+        n'est pas une propriete du reseau : c'est le CHOIX d'Omega, decide a
+        l'inference par la boucle de point fixe de CipherMarkWam.embed().
+        Separer les deux evite aussi de faire tourner DINOv2 dans la boucle
+        d'entrainement. C'est la strategie de WOUAF (empreintes aleatoires).
+        """
+        if self.omega_conditioner is None:
+            return self.msg
+        return torch.randint(0, 2, (taille, self.cfg.omega_nbits),
+                             device=torch.device("cuda"),
+                             generator=self.train_generator)
 
     def setup_optimizer(self):
         param_dict = {}
@@ -403,8 +431,19 @@ class Trainer(Evaluator):
                 
                 # forward
                 with torch.autocast(device_type="cuda", dtype=self.amp_dtype, enabled=self.enable_amp):
-                    x_wm_inmodel, _, _ = self.model(images, global_step=self.global_step)
-                    x_wm_posthoc, _, _ = self.reference_network(images, global_step=self.global_step, watermarker=self.watermarker, msg=self.msg)
+                    # CipherMark phase D : un Omega par image (ou le message
+                    # fixe de DistSeal si le conditionnement est desactive).
+                    # Le MEME msg_lot sert aux trois usages -- decodeur
+                    # conditionne, cible post-hoc, cible de la BCE -- sinon on
+                    # entrainerait le reseau vers un message et on le noterait
+                    # sur un autre.
+                    msg_lot = self._msg_du_lot(images.shape[0])
+                    if self.omega_conditioner is not None:
+                        with self.omega_conditioner.omega(msg_lot):
+                            x_wm_inmodel, _, _ = self.model(images, global_step=self.global_step)
+                    else:
+                        x_wm_inmodel, _, _ = self.model(images, global_step=self.global_step)
+                    x_wm_posthoc, _, _ = self.reference_network(images, global_step=self.global_step, watermarker=self.watermarker, msg=msg_lot)
                     x_non_wm, _, _ = self.reference_network(images, global_step=self.global_step)
                     loss_dict = {}
                     x_wm_inmodel = (x_wm_inmodel * 0.5 + 0.5).clamp(0, 1)
@@ -443,7 +482,9 @@ class Trainer(Evaluator):
 
                         # detect watermark
                         pred = self.watermarker.detector(imgs_res).to(x_wm_inmodel.device)[:, 1:]
-                        msg_repeated = self.msg.repeat(pred.shape[0], 1).float().to(pred.device)
+                        msg_repeated = (msg_lot.repeat(pred.shape[0], 1)
+                                        if msg_lot.shape[0] == 1 else msg_lot
+                                        ).float().to(pred.device)
                         loss_extractor = torch.nn.functional.binary_cross_entropy_with_logits(pred, msg_repeated)
                         loss_dict["loss_extractor"] = loss_extractor.detach()
                         loss += self.cfg.extractor_weight * loss_extractor
