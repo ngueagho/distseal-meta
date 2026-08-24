@@ -1,0 +1,92 @@
+# Phase D -- troisieme essai : modulation BORNEE + decodeur DEGELE.
+#
+# Ce que les deux essais precedents ont etabli
+# --------------------------------------------
+# Essai 1 (phaseD_smoke_64bits) : le conditionneur est bien monte, l'identite
+# a l'initialisation est exacte. Mais lr=1e-4 et extractor_weight=1.0 ont
+# detruit le decodeur en 100 pas.
+#
+# Essai 2 (phaseD_conditionneur_seul) : decodeur GELE. Deux enseignements.
+#   - La bit_acc est montee de 0.501 a 0.552 et y a plafonne pendant 2500 pas.
+#     C'est ~5 sigma au-dessus du hasard, donc Omega atteint REELLEMENT les
+#     pixels : le mecanisme est valide. Mais 0.55 est tres loin des 0.99+ que
+#     l'avalanche HMAC exige.
+#   - Le SSIM s'est quand meme effondre (0.652 -> 0.125) alors que le decodeur
+#     ne pouvait pas bouger. Le coupable n'etait donc pas le fine-tuning mais
+#     le conditionneur lui-meme, dont rien ne bornait gamma ni beta.
+#
+# Le diagnostic structurel
+# ------------------------
+# La modulation par canal est spatialement UNIFORME : elle multiplie tout un
+# plan de caracteristiques par un meme nombre. Decodeur gele, ses filtres
+# spatiaux ne s'adaptent pas, et l'effet net ressemble a un decalage global de
+# couleur et de contraste. Or l'extracteur du WAM lit des motifs
+# spatialement structures. D'ou beaucoup de degats pour peu de message.
+#
+# Les deux corrections
+# --------------------
+# 1. DEGELER le decodeur : c'est lui, et lui seul, qui peut convertir une
+#    modulation par canal en structure spatiale.
+# 2. BORNER la modulation : gamma dans [-0.3, +0.3] et beta dans [-0.1, +0.1]
+#    via tanh. L'optimiseur ne peut plus prendre le raccourci "saccager
+#    l'image pour satisfaire l'extracteur" -- il doit trouver un filigrane
+#    DANS ce budget. tanh(0)=0 donc l'identite a l'init reste exacte.
+#
+# Deux LR distincts
+# -----------------
+# Le conditionneur part de zero et doit bouger vite ; le decodeur est
+# pre-entraine et doit bouger lentement. Un LR unique ne peut pas convenir aux
+# deux. NB : la branche d'origine de setup_optimizer jetait les groupes de
+# parametres quand no_wd_keys etait vide -- corrige, sinon omega_lr aurait ete
+# silencieusement ignore.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseD_borne_degele.yaml
+
+run_dir: /workspace/runs/phaseD_borne_degele
+
+imagenet:
+    data_dir: /workspace/corpus_if
+    batch_size: 4
+
+model: dc-ae-f64c128-in-1.0
+
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+max_steps: 4000
+num_batches: 10
+evaluate_steps: 250
+save_checkpoint_steps: 1000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: cosine_annealing_with_rampup
+    warmup_steps: 300
+optimizer:
+    betas: [0.9, 0.999]
+    # LR du DECODEUR : bas, il est pre-entraine et fragile.
+    lr: 0.00002
+    name: adamw
+# LR du CONDITIONNEUR : dix fois plus, il part de zero.
+omega_lr: 0.0002

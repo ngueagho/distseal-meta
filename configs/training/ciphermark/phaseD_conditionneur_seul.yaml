@@ -1,0 +1,86 @@
+# Phase D -- deuxieme essai : SEUL le conditionneur s'entraine.
+#
+# Ce que le premier essai a appris
+# --------------------------------
+# phaseD_smoke_64bits.yaml a confirme que le conditionneur est bien monte et
+# que l'identite a l'initialisation est exacte (psnr_inmod_ori_ae = inf a
+# l'etape 0). Mais avec lr=1e-4 et extractor_weight=1.0, le decodeur
+# pre-entraine a ete detruit en 100 pas : SSIM 0.652 -> 0.112, et surtout la
+# perte de reconstruction est MONTEE (0.126 -> 0.268) alors qu'elle doit
+# descendre. La bit_acc est restee au hasard sur 4 validations.
+#
+# Le changement de fond
+# ---------------------
+# Geler le decodeur. Seuls les 2.91 M parametres du conditionneur bougent.
+# L'interet est logique, pas seulement pratique : un decodeur qui ne peut pas
+# bouger ne peut pas etre detruit, donc toute hausse de la bit_acc ne peut
+# venir que de la modulation par Omega. Le premier essai melangeait deux
+# questions -- "Omega porte-t-il l'information ?" et "le decodeur survit-il au
+# fine-tuning ?" -- et un echec ne permettait pas de dire laquelle avait
+# echoue. Ici il n'en reste qu'une.
+#
+# Ce que ce run NE peut pas prouver
+# ---------------------------------
+# La modulation est affine PAR CANAL, donc spatialement uniforme sur chaque
+# carte de caracteristiques : la structure spatiale du filigrane ne peut
+# provenir que des filtres du decodeur, qui sont figes. C'est exactement le
+# reglage de WOUAF moins le fine-tuning, donc c'est plausible -- mais si la
+# bit_acc reste plate, la conclusion sera "la modulation seule ne suffit pas",
+# pas "le conditionnement ne marche pas".
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseD_conditionneur_seul.yaml
+
+run_dir: /workspace/runs/phaseD_cond_seul
+
+imagenet:
+    data_dir: /workspace/corpus_if
+    batch_size: 4
+
+model: dc-ae-f64c128-in-1.0
+
+omega_nbits: 64
+freeze_decoder: true
+
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes ----------------------------------------------------------------
+# 0.5 : la valeur de l'exemple de Meta. 1.0 au premier essai a fait ecraser la
+# reconstruction par le gradient du message.
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+# --- duree -----------------------------------------------------------------
+# Plus long que les 400 pas du premier essai : 400 pas x lot de 4 ne font que
+# 1600 images, ce qui est de toute facon trop peu pour conclure.
+max_steps: 3000
+num_batches: 10
+evaluate_steps: 250
+save_checkpoint_steps: 1000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: cosine_annealing_with_rampup
+    # 300 pas de montee au lieu de 50 : la destruction du premier essai s'est
+    # produite pendant la montee.
+    warmup_steps: 300
+optimizer:
+    # Le conditionneur part de zero (tetes initialisees a zero) et n'a que
+    # 2.91 M parametres, il peut donc encaisser un LR plus franc qu'un
+    # decodeur pre-entraine -- mais on reste sous le 1e-4 du premier essai.
+    betas: [0.9, 0.999]
+    lr: 0.00005
+    name: adamw

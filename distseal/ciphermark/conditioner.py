@@ -61,20 +61,45 @@ class OmegaConditioner(nn.Module):
         channels: Sequence[int],
         hidden: int = 256,
         n_couches_mapping: int = 3,
+        gamma_max: float = 0.0,
+        beta_max: float = 0.0,
     ):
         """
-        nbits    : largeur d'Omega (64 pour CipherMark, cf. WitnessConfig)
-        channels : nombre de canaux de chaque etage conditionne du decodeur
-        hidden   : largeur du code latent produit par le reseau de mapping
+        nbits      : largeur d'Omega (64 pour CipherMark, cf. WitnessConfig)
+        channels   : nombre de canaux de chaque etage conditionne du decodeur
+        hidden     : largeur du code latent produit par le reseau de mapping
+        gamma_max  : borne sur la modulation multiplicative. 0 = non bornee.
+        beta_max   : borne sur la modulation additive. 0 = non bornee.
+
+        Pourquoi borner
+        ---------------
+        Mesure du run phaseD_cond_seul : avec un decodeur GELE, la bit_acc est
+        montee de 0.501 a 0.536 -- Omega atteint donc bien les pixels -- mais
+        le SSIM s'est effondre de 0.652 a 0.181 et la perte de reconstruction
+        a MONTE (0.126 -> 0.303). Le decodeur ne pouvant pas bouger, la
+        degradation ne peut venir que du conditionneur : rien ne bornait gamma
+        ni beta, et l'optimiseur les a fait grossir pour satisfaire
+        l'extracteur au prix de l'image.
+
+        Avec des bornes, gamma vit dans [-gamma_max, +gamma_max] (facteur
+        multiplicatif dans [1-gamma_max, 1+gamma_max]) et beta dans
+        [-beta_max, +beta_max]. La degradation devient impossible au-dela d'un
+        seuil choisi, et l'optimiseur doit trouver un filigrane DANS ce
+        budget. tanh(0) = 0, donc l'identite exacte a l'initialisation est
+        preservee.
         """
         super().__init__()
         if nbits <= 0:
             raise ValueError("nbits doit etre > 0")
         if not channels:
             raise ValueError("channels ne peut pas etre vide")
+        if gamma_max < 0 or beta_max < 0:
+            raise ValueError("gamma_max et beta_max doivent etre >= 0")
 
         self.nbits = nbits
         self.channels = list(channels)
+        self.gamma_max = float(gamma_max)
+        self.beta_max = float(beta_max)
 
         # reseau de mapping : Omega -> code latent partage
         couches: List[nn.Module] = []
@@ -137,6 +162,11 @@ class OmegaConditioner(nn.Module):
         gb = self._modulation[i]
         c = self.channels[i]
         gamma, beta = gb[:, :c], gb[:, c:]
+        # bornes optionnelles -- tanh(0) = 0, l'identite a l'init est intacte
+        if self.gamma_max > 0:
+            gamma = self.gamma_max * torch.tanh(gamma)
+        if self.beta_max > 0:
+            beta = self.beta_max * torch.tanh(beta)
         if sortie.dim() != 4:
             raise RuntimeError(
                 f"le hook attend une activation (B, C, H, W), recu "

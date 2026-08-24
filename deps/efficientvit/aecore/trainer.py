@@ -64,6 +64,9 @@ class TrainerConfig(EvaluatorConfig):
     watermarker_ckpt_path: Optional[str] = None
     watermarker_scaling_w: Optional[float] = None
     watermarker_seed: int = 42
+
+    # CipherMark : LR propre au conditionneur Omega. 0 = meme LR que le reste.
+    omega_lr: float = 0.0
     latent_watermarker: bool = True
     latent_layer: str = "input"
 
@@ -186,12 +189,19 @@ class Trainer(Evaluator):
         param_dict = {}
         weight_decay, init_lr = self.cfg.optimizer.weight_decay, self.cfg.optimizer.lr
         no_wd_keys = self.cfg.optimizer.no_wd_keys
+        # CipherMark : le conditionneur part de zero (tetes initialisees a
+        # zero) et doit bouger vite ; le decodeur est pre-entraine et doit
+        # bouger lentement. Un LR unique ne peut pas convenir aux deux.
+        omega_lr = getattr(self.cfg, "omega_lr", 0.0) or 0.0
+
         for name, param in self.network.named_parameters():
             if not param.requires_grad:
                 continue
             opt_config = [weight_decay, init_lr]
             if any(key in name for key in no_wd_keys):
                 opt_config[0] = 0.0
+            if omega_lr > 0 and "omega_conditioner" in name:
+                opt_config[1] = omega_lr
             opt_key = json.dumps(opt_config)
             param_dict[opt_key] = param_dict.get(opt_key, []) + [param]
 
@@ -201,7 +211,12 @@ class Trainer(Evaluator):
             net_params.append({"params": param_list, "weight_decay": wd, "lr": lr})
 
         if self.cfg.optimizer.name == "adamw":
-            if len(no_wd_keys) > 0:
+            # ATTENTION : la branche d'origine ne prend net_params que si
+            # no_wd_keys est non vide -- sinon elle repart de
+            # network.parameters(), un groupe plat, et TOUT reglage par groupe
+            # est silencieusement perdu. Il faut donc aussi passer par
+            # net_params des qu'un LR specifique est demande.
+            if len(no_wd_keys) > 0 or omega_lr > 0:
                 self.optimizer = torch.optim.AdamW(net_params, lr=self.cfg.optimizer.lr, betas=self.cfg.optimizer.betas)
             else:
                 self.optimizer = torch.optim.AdamW(

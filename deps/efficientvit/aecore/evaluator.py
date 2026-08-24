@@ -65,6 +65,19 @@ class EvaluatorConfig:
     # dans les poids). > 0 = le decodeur est conditionne sur un Omega variable.
     omega_nbits: int = 0
 
+    # CipherMark : gele le decodeur et n'entraine que le conditionneur Omega.
+    # Isole la question "Omega porte-t-il l'information jusqu'aux pixels ?" de
+    # la question "le decodeur survit-il au fine-tuning ?". Un decodeur gele ne
+    # peut pas etre detruit, donc toute hausse de la bit_acc ne peut venir que
+    # de la modulation.
+    freeze_decoder: bool = False
+
+    # Bornes de la modulation (cf. OmegaConditioner). 0 = non bornee, ce qui a
+    # fait s'effondrer le SSIM de 0.652 a 0.181 sur phaseD_cond_seul alors meme
+    # que le decodeur etait gele.
+    omega_gamma_max: float = 0.0
+    omega_beta_max: float = 0.0
+
     # dataset
     dataset: str = "imagenet"
     imagenet: ImageNetDataProviderConfig = field(
@@ -120,7 +133,9 @@ class Evaluator:
             if "encoder" in name or "quantizer" in name:
                 param.requires_grad = False
             if "decoder" in name:
-                param.requires_grad = True
+                # CipherMark : le conditionneur est ajoute plus bas, apres
+                # cette boucle, donc il reste entrainable meme ici.
+                param.requires_grad = not getattr(cfg, "freeze_decoder", False)
 
         def disabled_train(self, mode=True):
             """Overwrite model.train with this function to make sure train/eval mode
@@ -156,7 +171,9 @@ class Evaluator:
                     f"{type(model.decoder).__name__}")
             cond = OmegaConditioner(
                 nbits=cfg.omega_nbits,
-                channels=[c for _, _, c in etages]).cuda()
+                channels=[c for _, _, c in etages],
+                gamma_max=getattr(cfg, "omega_gamma_max", 0.0),
+                beta_max=getattr(cfg, "omega_beta_max", 0.0)).cuda()
             cond.attach([m for _, m, _ in etages])
             # sous-module du reseau : l'optimiseur le voit via
             # network.parameters(), et il est sauve dans le state_dict.
@@ -166,7 +183,8 @@ class Evaluator:
                 print(f"[CipherMark] decodeur conditionne sur Omega "
                       f"({cfg.omega_nbits} bits) -- {len(etages)} etages "
                       f"{[c for _, _, c in etages]}, "
-                      f"{cond.n_parametres()/1e6:.2f} M parametres")
+                      f"{cond.n_parametres()/1e6:.2f} M parametres, "
+                      f"gamma_max={cond.gamma_max} beta_max={cond.beta_max}")
 
         if is_dist_initialized():
             self.model = nn.parallel.DistributedDataParallel(
