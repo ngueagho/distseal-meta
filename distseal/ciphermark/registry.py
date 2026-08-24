@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS traces (
     parity     BLOB    NOT NULL,
     n_bits     INTEGER NOT NULL,
     rs_nsym    INTEGER NOT NULL,
+    h_ref      BLOB,
     session    TEXT,
     created_at TEXT    NOT NULL
 );
@@ -84,6 +85,7 @@ class TraceRegistry:
         rs_nsym: int,
         session: Optional[str] = None,
         overwrite: bool = False,
+        h_ref: Optional[bytes] = None,
     ) -> None:
         """
         Enregistre la parite associee a un nonce.
@@ -94,6 +96,8 @@ class TraceRegistry:
         """
         if not isinstance(parity, (bytes, bytearray)):
             raise TypeError("parity doit etre bytes")
+        if h_ref is not None and not isinstance(h_ref, (bytes, bytearray)):
+            raise TypeError("h_ref doit etre bytes")
         if nonce < 0:
             raise ValueError("nonce doit etre positif")
 
@@ -102,16 +106,18 @@ class TraceRegistry:
             if overwrite:
                 self._conn.execute(
                     "INSERT OR REPLACE INTO traces "
-                    "(nonce, parity, n_bits, rs_nsym, session, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (nonce, bytes(parity), n_bits, rs_nsym, session, now),
+                    "(nonce, parity, n_bits, rs_nsym, h_ref, session, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (nonce, bytes(parity), n_bits, rs_nsym,
+                     bytes(h_ref) if h_ref is not None else None, session, now),
                 )
             else:
                 self._conn.execute(
                     "INSERT INTO traces "
-                    "(nonce, parity, n_bits, rs_nsym, session, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (nonce, bytes(parity), n_bits, rs_nsym, session, now),
+                    "(nonce, parity, n_bits, rs_nsym, h_ref, session, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (nonce, bytes(parity), n_bits, rs_nsym,
+                     bytes(h_ref) if h_ref is not None else None, session, now),
                 )
         except sqlite3.IntegrityError as exc:
             raise NonceReuseError(
@@ -148,6 +154,27 @@ class TraceRegistry:
         if entry is None:
             raise KeyError(f"nonce {nonce} absent du registre")
         return entry.parity
+
+    def h_ref_for(self, nonce: int) -> bytes:
+        """Hash de reference associe a un nonce.
+
+        Utilise par la verification en distance de Hamming : le verifieur
+        compare PHash(image observee) a ce hash au lieu de le reconstruire par
+        correction Reed-Solomon. Stocker h_ref est ce qui permet au verifieur
+        de CONSULTER reellement le contenu -- la correction, elle, retrouvait
+        la reference quelle que soit l'image presentee.
+        """
+        row = self._conn.execute(
+            "SELECT h_ref FROM traces WHERE nonce = ?", (nonce,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"nonce {nonce} absent du registre")
+        if row["h_ref"] is None:
+            raise KeyError(
+                f"nonce {nonce} enregistre sans h_ref : entree creee par une "
+                "version anterieure, ou embed() lance sans hamming_threshold"
+            )
+        return bytes(row["h_ref"])
 
     def next_free_nonce(self) -> int:
         """Plus grand nonce enregistre + 1 (0 si la table est vide)."""

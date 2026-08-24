@@ -21,7 +21,7 @@ import torch
 from torch import nn
 
 from .crypto import bytes_to_bits, random_seed
-from .equation import CipherMarkVerifier, VerificationReport
+from .equation import CipherMarkVerifier, VerificationReport, Verdict
 from .phash import PerceptualHash
 from .registry import TraceRegistry
 from .witness import WitnessConfig, WitnessField
@@ -66,6 +66,26 @@ class CipherMarkConfig:
     nonce_start: int = 0
     session: Optional[str] = None
 
+    # Verification de la liaison au contenu par DISTANCE DE HAMMING.
+    # Exprime en FRACTION de la largeur du hash, pour rester valide quelle que
+    # soit celle-ci. 0 = desactive, ce qui restaure le comportement d'origine
+    # (le hash est reconstruit par correction Reed-Solomon).
+    #
+    # Pourquoi ce mode est le defaut : la correction RS reconstruit la
+    # reference DEPUIS LA PARITE, donc sans jamais consulter l'image -- d'ou la
+    # transplantation qui reussissait 8/8. La comparaison oblige le verifieur a
+    # regarder le contenu. Mesure sur 100 images, hash de 256 bits : a 27 % de
+    # la largeur (70 bits), 0 % de transplantations acceptees et 96-100 % des
+    # images legitimes conservees selon la distorsion.
+    hamming_threshold: float = 0.27
+
+    # En deca de cette largeur, la comparaison n'a pas de seuil viable : a
+    # 64 bits, la derive legitime maximale (22 bits) rejoint la distance
+    # minimale a une image etrangere (22 bits). Le hash doit donc etre plus
+    # large qu'Omega -- ce que rien n'interdit, puisqu'il ne traverse jamais
+    # l'image : il est recalcule par le verifieur.
+    hash_bits_min: int = 128
+
 
 class CipherMarkWam(nn.Module):
     """
@@ -94,6 +114,16 @@ class CipherMarkWam(nn.Module):
         self.phash = phash
         self.keys = keys
         self.cfg = cfg or CipherMarkConfig()
+        if self.cfg.hamming_threshold > 0 and phash.n_bits < self.cfg.hash_bits_min:
+            raise ValueError(
+                f"hash de {phash.n_bits} bits trop etroit pour la verification "
+                f"par distance de Hamming (minimum {self.cfg.hash_bits_min}). "
+                "A cette largeur les distributions de derive legitime et de "
+                "contenu etranger se recouvrent : aucun seuil ne les separe. "
+                "Elargir le hash (il ne traverse pas l'image, sa largeur est "
+                "independante de celle d'Omega) ou mettre hamming_threshold=0 "
+                "pour revenir a la correction Reed-Solomon.")
+
         # Base de tracabilite : nonce -> parite RS. Sans elle le verifieur ne
         # peut pas corriger le hash observe. En memoire par defaut (tests).
         self.registry = registry if registry is not None else TraceRegistry()
@@ -201,8 +231,16 @@ class CipherMarkWam(nn.Module):
         last_imgs_w = None
         last_omega = None
         converged = False
+        self._fp_trace = []      # distance max par iteration, pour diagnostic
         it = 0
+        h_used = h_bytes          # hash dont Omega est REELLEMENT derive
         for it in range(self.cfg.max_fixed_point_iters):
+            # h_bytes evolue a chaque tour, mais le Omega grave dans
+            # last_imgs_w est celui derive du h_bytes de CE tour-ci. A la
+            # sortie de boucle, h_bytes a donc une iteration d'avance sur
+            # l'image : c'est h_used qu'il faut stocker comme reference,
+            # sinon le verifieur calcule un tag qui ne correspond a rien.
+            h_used = h_bytes
             omega_bits = self._omega_bits_for(h_bytes, image_ids).to(imgs.device)
 
             out = self.wam.embed(imgs, msgs=omega_bits, **self._batch_kwargs())
@@ -210,29 +248,49 @@ class CipherMarkWam(nn.Module):
             last_imgs_w = imgs_w
             last_omega = omega_bits
 
-            # hash de l'image marquee, corrige par la parite courante
-            h_corr = self._corrige(self._phash_bytes(imgs_w), parity)
+            if self.cfg.hamming_threshold > 0:
+                # Mode COMPARAISON : le verifieur recalculera PHash(x_w) SANS
+                # correction. Le point fixe doit donc porter sur le hash BRUT
+                # de l'image marquee, sinon Omega serait derive d'un hash que
+                # le verifieur ne retrouvera jamais. Avec la correction, le
+                # critere etait trivialement vrai et la boucle sortait au
+                # premier tour sans rien faire converger.
+                h_next = self._phash_bytes(imgs_w)
+            else:
+                # hash de l'image marquee, corrige par la parite courante
+                h_next = self._corrige(self._phash_bytes(imgs_w), parity)
 
             max_d = max(
-                (self._bit_distance(a, b) for a, b in zip(h_bytes, h_corr)),
+                (self._bit_distance(a, b) for a, b in zip(h_bytes, h_next)),
                 default=0,
             )
+            self._fp_trace.append(max_d)
             if max_d <= self.cfg.fp_tol:
                 converged = True
                 break
 
             # sinon on repart du hash observe, avec SA parite
-            h_bytes = h_corr
+            h_bytes = h_next
             parity = self._parity(h_bytes)
 
-        # BD[nonce] <- (pi, metadonnees). Le registre refuse un nonce deja vu.
-        for iid, pi in zip(image_ids, parity):
+        # Hash de reference pour la verification par distance de Hamming : on
+        # stocke celui de l'image MARQUEE, puisque c'est elle que le verifieur
+        # observera. La mesure montre que le marquage deplace le hash de 32.5 %
+        # de ses bits : stocker celui de l'image d'origine rendrait toute
+        # verification legitime impossible.
+        # h_ref doit etre EXACTEMENT le hash dont Omega a ete derive, sinon le
+        # tag attendu par le verifieur ne correspondra pas a celui grave.
+        h_ref = h_used if self.cfg.hamming_threshold > 0 else [None] * B
+
+        # BD[nonce] <- (pi, h_ref, metadonnees). Le registre refuse un nonce deja vu.
+        for iid, pi, hr in zip(image_ids, parity, h_ref):
             self.registry.put(
                 nonce=iid,
                 parity=pi,
                 n_bits=self.cfg.n_bits,
                 rs_nsym=self.phash.rs.nsym,
                 session=self.cfg.session,
+                h_ref=hr,
             )
 
         return {
@@ -241,6 +299,7 @@ class CipherMarkWam(nn.Module):
             "image_ids": image_ids,
             "n_iters": it + 1,
             "converged": converged,
+            "fp_trace": self._fp_trace,
             "h_bytes": h_bytes,
             "parity": parity,
         }
@@ -284,11 +343,34 @@ class CipherMarkWam(nn.Module):
         omega_obs = (msg_logits > 0).to(torch.uint8).cpu().numpy()
 
         h_obs = self._phash_bytes(imgs)
-        parity = [self.registry.parity_for(iid) for iid in image_ids]
-        h_hat = self._corrige(h_obs, parity)
+
+        if self.cfg.hamming_threshold > 0:
+            # Mode COMPARAISON : on ne corrige plus, on confronte le hash
+            # observe a la reference. Au-dela du seuil, l'image est declaree
+            # etrangere et le tag n'est meme pas examine.
+            tau = round(self.cfg.hamming_threshold * self.phash.n_bits)
+            h_hat, contenu_ok = [], []
+            for i, iid in enumerate(image_ids):
+                h_ref = self.registry.h_ref_for(iid)
+                d = self._bit_distance(h_obs[i], h_ref)
+                contenu_ok.append(d <= tau)
+                # On evalue le tag sur la reference : si le contenu correspond,
+                # c'est le bon hash ; sinon le verdict sera de toute facon
+                # ecrase ci-dessous.
+                h_hat.append(h_ref)
+        else:
+            parity = [self.registry.parity_for(iid) for iid in image_ids]
+            h_hat = self._corrige(h_obs, parity)
+            contenu_ok = [True] * len(image_ids)
 
         reports = []
         for i, iid in enumerate(image_ids):
             r = self.verifier.verify(omega_obs[i], h_hat[i], iid)
+            if not contenu_ok[i]:
+                # Le contenu ne correspond pas : quel que soit le tag, l'image
+                # n'est pas celle qui a ete marquee sous ce nonce.
+                r.verdict = Verdict.NOT_WATERMARKED
+                r.notes = (r.notes + " | " if r.notes else "") + \
+                    "contenu rejete : distance de hash au-dela du seuil"
             reports.append(r)
         return reports

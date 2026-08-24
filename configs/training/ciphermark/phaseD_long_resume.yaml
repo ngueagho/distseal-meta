@@ -1,0 +1,94 @@
+# Phase D -- quatrieme essai : long, a LR CONSTANT.
+#
+# La question, et une seule
+# -------------------------
+# L'essai 3 (phaseD_borne_degele) est monte de 0.501 a 0.698 puis s'est aplati
+# entre les pas 3250 et 4000 (0.698 -> 0.693). Il serait tentant d'y lire un
+# plafond de capacite. Mais son calendrier etait un COSINUS sur 4000 pas : le
+# learning rate tombait quasiment a zero sur cette fin, et les 750 derniers pas
+# se sont faits presque sans apprentissage.
+#
+# On ne peut donc pas distinguer un vrai plafond de la simple fin du
+# calendrier. Ce run tranche : LR constant apres montee, sur 20 000 pas.
+#   - si la bit_acc repart nettement au-dela de 0.70, l'aplatissement de
+#     l'essai 3 n'etait qu'un artefact du calendrier ;
+#   - si elle replafonne autour de 0.70 avec un LR toujours actif, c'est un
+#     vrai mur, et le suspect devient le point stationnaire trivial deja
+#     rencontre en phase A (remede : le curriculum de messages de train.py,
+#     ecrit mais jamais teste).
+#
+# Discipline experimentale
+# ------------------------
+# UN SEUL facteur change par rapport a l'essai 3 : le calendrier de LR (et la
+# duree, qui en decoule). Bornes, learning rates, poids de pertes, taille de
+# lot, corpus, watermarker : tout est identique. Sans cela, une difference de
+# resultat ne serait attribuable a rien.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseD_long_lr_constant.yaml
+
+run_dir: /workspace/runs/phaseD_long
+
+imagenet:
+    data_dir: /workspace/corpus_if
+    batch_size: 4
+
+model: dc-ae-f64c128-in-1.0
+
+# --- conditionnement (identique a l'essai 3) -------------------------------
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+# --- watermarker enseignant (identique) ------------------------------------
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes (identiques) ---------------------------------------------------
+# extractor_weight reste a 0.5 : le relever aiderait peut-etre la bit_acc mais
+# introduirait un second facteur, et la question posee ne serait plus tranchee.
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+# --- duree -----------------------------------------------------------------
+# 5x l'essai 3. A ~51 pas/min mesures, environ 6 h 30.
+max_steps: 40000
+num_batches: 10
+# 40 points de mesure : assez pour voir une reprise ou un plateau franc, sans
+# que la validation ne mange le temps de calcul.
+evaluate_steps: 500
+save_checkpoint_steps: 4000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+# --- LE changement ---------------------------------------------------------
+# constant_with_warmup : montee lineaire sur 300 pas puis PLATEAU. Le LR reste
+# actif jusqu'au dernier pas, donc un aplatissement de la bit_acc ne pourra
+# plus etre impute au calendrier.
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 300
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002
+
+# --- reprise ---
+# run_dir INCHANGE (= phaseD_long) : try_resume_from_checkpoint() trouve
+# checkpoint.pt automatiquement et restaure reseau, optimiseur (les 2 groupes
+# de LR), lr_scheduler, global_step=20000, RNG. resume=True est le defaut,
+# pas besoin de le forcer. max_steps double (20000 -> 40000) : 20000 pas de
+# plus a LR constant, pour voir si 0.9641 continue de monter vers 0.99.

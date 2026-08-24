@@ -64,6 +64,8 @@ from distseal.utils.cfg import get_config_from_checkpoint, setup_model_from_chec
 import distseal.utils.optim as uoptim  # noqa: E402
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# largeur du hash perceptuel, independante de celle d'Omega
+HASH_BITS = 256
 
 
 def log(msg):
@@ -131,7 +133,9 @@ def main() -> int:
 
     dino = _try_load_dinov2()
     log(f"PHash : {'DINOv2-small REEL' if dino is not None else 'repli DCT'}")
-    phash = PerceptualHash(n_bits=nbits, backbone=dino or _DCTFallback()).to(DEVICE).eval()
+    # hash decouple d'Omega : il ne traverse pas l'image, sa largeur n'est pas
+    # contrainte par la capacite de l'extracteur (cf. CipherMarkConfig)
+    phash = PerceptualHash(n_bits=HASH_BITS, backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
     n = args.n_images
     imgs = load_images(args.corpus, img_size, 2 * n, args.seed).to(DEVICE)
