@@ -109,6 +109,9 @@ def main() -> int:
     ap.add_argument("--checkpoint", default="runs/ciphermark_64bits_checkpoint.pth")
     ap.add_argument("--corpus", default="corpus-colab/val")
     ap.add_argument("--n-images", type=int, default=30)
+    ap.add_argument("--batch", type=int, default=10)
+    ap.add_argument("--hash-bits", type=int, default=256,
+                    help="largeur du hash perceptuel. Decouplee de celle d Omega : le hash ne traverse pas l image, il est recalcule par le verifieur, donc la capacite de l extracteur ne le contraint pas. En dessous de 128 bits les derives legitimes et le contenu etranger se recouvrent.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="runs/mesure_derive_hash.json")
     args = ap.parse_args()
@@ -119,32 +122,21 @@ def main() -> int:
     replay_scaling(wam, cfg, args.checkpoint)
     wam = wam.to(DEVICE).eval()
     nbits, img_size = int(cfg.args.nbits), int(cfg.args.img_size)
-    taille = (nbits + 7) // 8
-    log(f"nbits={nbits} -> hash de {taille} octets")
+    taille = args.hash_bits // 8
+    log(f"Omega de {nbits} bits, hash de {args.hash_bits} bits ({taille} octets)")
 
     dino = _try_load_dinov2()
     log(f"PHash : {'DINOv2-small REEL' if dino is not None else 'repli DCT'}")
-    phash = PerceptualHash(n_bits=nbits, backbone=dino or _DCTFallback()).to(DEVICE).eval()
+    phash = PerceptualHash(n_bits=args.hash_bits,
+                           backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
-    imgs = load_images(args.corpus, img_size, args.n_images, args.seed).to(DEVICE)
+    imgs_all = load_images(args.corpus, img_size, args.n_images, args.seed)
     cm = CipherMarkWam(wam=wam, phash=phash, keys=CipherMarkKeys.random(),
                        cfg=CipherMarkConfig(n_bits=nbits, max_fixed_point_iters=3),
                        registry=TraceRegistry())
 
-    log("marquage des images")
-    out = cm.embed(imgs)
-    marquees = out["imgs_w"]
-    h_ori = cm._phash_bytes(imgs)
-    h_mar = cm._phash_bytes(marquees)
-
-    res = []
-
-    # 1. derive due au marquage
-    d = [octets_differents(a, b) for a, b in zip(h_ori, h_mar)]
-    res.append(stats("marquage", d, taille))
-    log(f"marquage : {np.mean(d):.2f} octets en moyenne, max {max(d)}")
-
-    # 2. derive sous attaques passives
+    # Les attaques passives sont definies avant la boucle : chaque lot les subit
+    # toutes, sinon il faudrait re-marquer le corpus une fois par attaque.
     attaques = [
         ("jpeg_q50", lambda x: valuemetric.JPEG()(x, None, quality=50)[0]),
         ("jpeg_q30", lambda x: valuemetric.JPEG()(x, None, quality=30)[0]),
@@ -153,22 +145,56 @@ def main() -> int:
         ("crop_0.9", lambda x: geometric.Crop()(x, None, size=0.9)[0]),
         ("crop_0.5", lambda x: geometric.Crop()(x, None, size=0.5)[0]),
     ]
-    for nom, fn in attaques:
-        try:
-            x = fn(marquees.clone()).clamp(0, 1)
-            if x.shape[-2:] != (img_size, img_size):
-                x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
-                                  align_corners=False, antialias=True)
-            h_att = cm._phash_bytes(x)
-            d = [octets_differents(a, b) for a, b in zip(h_mar, h_att)]
+
+    # Traitement par lots : a 5000 images, marquer tout d'un bloc epuise la
+    # memoire du GPU. Seuls les hash (quelques octets par image) sont conserves.
+    d_marquage = []
+    d_attaque = {nom: [] for nom, _ in attaques}
+    echecs = {}
+    h_mar_tous = []
+    nb = (len(imgs_all) + args.batch - 1) // args.batch
+    log(f"marquage de {len(imgs_all)} images en {nb} lots de {args.batch}")
+    for bi in range(nb):
+        imgs = imgs_all[bi * args.batch:(bi + 1) * args.batch].to(DEVICE)
+        marquees = cm.embed(imgs)["imgs_w"]
+        h_ori = cm._phash_bytes(imgs)
+        h_mar = cm._phash_bytes(marquees)
+        h_mar_tous.extend(h_mar)
+        d_marquage.extend(octets_differents(a, b) for a, b in zip(h_ori, h_mar))
+        for nom, fn in attaques:
+            if nom in echecs:
+                continue
+            try:
+                x = fn(marquees.clone()).clamp(0, 1)
+                if x.shape[-2:] != (img_size, img_size):
+                    x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
+                                      align_corners=False, antialias=True)
+                h_att = cm._phash_bytes(x)
+                d_attaque[nom].extend(octets_differents(a, b)
+                                      for a, b in zip(h_mar, h_att))
+            except Exception as exc:
+                echecs[nom] = repr(exc)
+                log(f"{nom} en echec : {exc!r}")
+        if (bi + 1) % 20 == 0 or bi + 1 == nb:
+            log(f"  lot {bi + 1}/{nb} -- {len(h_mar_tous)} images traitees")
+
+    res = []
+
+    # 1. derive due au marquage
+    res.append(stats("marquage", d_marquage, taille))
+    log(f"marquage : {np.mean(d_marquage):.2f} octets en moyenne, "
+        f"max {max(d_marquage)}")
+
+    # 2. derive sous attaques passives
+    for nom, _ in attaques:
+        d = d_attaque[nom]
+        if d:
             res.append(stats(nom, d, taille))
             log(f"{nom} : {np.mean(d):.2f} octets en moyenne, max {max(d)}")
-        except Exception as exc:
-            log(f"{nom} en echec : {exc!r}")
 
     # 3. la borne a NE PAS pouvoir corriger : une image etrangere
-    d = [octets_differents(h_mar[i], h_mar[(i + 1) % len(h_mar)])
-         for i in range(len(h_mar))]
+    d = [octets_differents(h_mar_tous[i], h_mar_tous[(i + 1) % len(h_mar_tous)])
+         for i in range(len(h_mar_tous))]
     res.append(stats("AUTRE_image", d, taille))
     log(f"AUTRE image : {np.mean(d):.2f} octets en moyenne, min {min(d)}")
 
@@ -208,7 +234,8 @@ def main() -> int:
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
-        json.dump({"nbits": nbits, "taille_octets": taille, "resultats": res}, f, indent=2)
+        json.dump({"nbits": nbits, "hash_bits": args.hash_bits,
+                   "taille_octets": taille, "resultats": res}, f, indent=2)
     log(f"resultats ecrits dans {args.out}")
     return 0
 

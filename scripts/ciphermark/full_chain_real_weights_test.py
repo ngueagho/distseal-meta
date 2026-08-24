@@ -178,6 +178,10 @@ def main() -> int:
                          "cf. docs/a-faire-memoire.md -- a 256 bits le canal "
                          "plafonne (bit_acc 0.61, 0/5 AUTHENTIC), a 64 il rend "
                          "5/5 a zero bit d erreur.")
+    ap.add_argument("--batch", type=int, default=10,
+                    help="taille de lot pour le marquage et la verification")
+    ap.add_argument("--hash-bits", type=int, default=256,
+                    help="largeur du hash perceptuel. Decouplee de celle d Omega : le hash ne traverse pas l image, il est recalcule par le verifieur, donc la capacite de l extracteur ne le contraint pas. En dessous de 128 bits les derives legitimes et le contenu etranger se recouvrent.")
     ap.add_argument("--n-images", type=int, default=5,
                      help="nb d'images distinctes pour le test multi-utilisateurs")
     ap.add_argument("--seed", type=int, default=0)
@@ -222,7 +226,7 @@ def main() -> int:
 
     log("construction du PerceptualHash (peut prendre un peu de temps: "
         "inference dummy pour inferer la dimension de features)")
-    phash = PerceptualHash(n_bits=args.n_bits, backbone=phash_backbone).to(DEVICE)
+    phash = PerceptualHash(n_bits=args.hash_bits, backbone=phash_backbone).to(DEVICE)
     phash.eval()
 
     # ------------------------------------------------------------- images ---
@@ -250,28 +254,58 @@ def main() -> int:
     cm_main = CipherMarkWam(wam=wam, phash=phash, keys=keys_main,
                              cfg=cm_cfg, registry=registry_main)
 
+    # Traitement par lots : a 5000 images le corpus marque ne tient pas en
+    # memoire GPU. Seuls les rapports, les PSNR et les identifiants -- quelques
+    # scalaires par image -- traversent la boucle.
     t0 = time.time()
-    out = cm_main.embed(imgs)
-    log(f"embed() de {n_needed} images en {time.time() - t0:.1f}s "
-        f"(converged={out['converged']}, n_iters={out['n_iters']})")
-
-    for i in range(n_needed):
-        p = psnr(imgs[i], out["imgs_w"][i])
-        log(f"  image {i}: PSNR = {p:.2f} dB")
-
-    t0 = time.time()
-    reports = cm_main.verify(out["imgs_w"], out["image_ids"])
-    log(f"verify() en {time.time() - t0:.1f}s")
+    reports, psnrs, ids_tous = [], [], []
+    converged, n_iters_max, premiere_marquee = True, 0, None
+    nb = (n_needed + args.batch - 1) // args.batch
+    log(f"marquage et verification de {n_needed} images en {nb} lots de {args.batch}")
+    for bi in range(nb):
+        lot = imgs[bi * args.batch:(bi + 1) * args.batch].to(DEVICE)
+        out_b = cm_main.embed(lot)
+        if premiere_marquee is None:
+            premiere_marquee = out_b["imgs_w"][:1].clone()
+        converged = converged and bool(out_b["converged"])
+        n_iters_max = max(n_iters_max, int(out_b["n_iters"]))
+        ids_tous.extend(out_b["image_ids"])
+        psnrs.extend(psnr(lot[i], out_b["imgs_w"][i]) for i in range(lot.shape[0]))
+        reports.extend(cm_main.verify(out_b["imgs_w"], out_b["image_ids"]))
+        if (bi + 1) % 10 == 0 or bi + 1 == nb:
+            log(f"  lot {bi + 1}/{nb} -- {len(reports)} images")
+    out = {"image_ids": ids_tous, "converged": converged, "n_iters": n_iters_max,
+           "imgs_w": premiere_marquee}
+    finis = [p for p in psnrs if p != float("inf")]
+    log(f"embed()+verify() de {n_needed} images en {time.time() - t0:.1f}s "
+        f"(converged={converged}, n_iters={n_iters_max})")
+    log(f"PSNR : mediane {np.median(finis):.2f} dB, min {min(finis):.2f}, "
+        f"max {max(finis):.2f} dB")
 
     summary_lines.append("")
     summary_lines.append("-- Partie A: round-trip honnete (memes cles, meme registre) --")
     n_authentic = 0
+    # Au-dela d'une dizaine d'images, le detail ligne a ligne noie le bilan :
+    # on n'imprime que les premieres, puis les statistiques agregees.
     for i, r in enumerate(reports):
-        label = f"image_{i} (id={out['image_ids'][i]}) honnete"
-        summary_lines.append(fmt_row(label, r.verdict.value, r.distance, r.total, r.p_value, r.confidence))
-        log(fmt_row(label, r.verdict.value, r.distance, r.total, r.p_value, r.confidence))
+        if i < 10:
+            label = f"image_{i} (id={out['image_ids'][i]}) honnete"
+            ligne = fmt_row(label, r.verdict.value, r.distance, r.total,
+                            r.p_value, r.confidence)
+            summary_lines.append(ligne)
+            log(ligne)
         if r.verdict.value == "authentic":
             n_authentic += 1
+    if len(reports) > 10:
+        summary_lines.append(f"  ... {len(reports) - 10} lignes omises")
+    dists = [r.distance for r in reports]
+    pvals = [r.p_value for r in reports]
+    stat = (f"distance de Hamming : mediane {np.median(dists):.1f}/{reports[0].total}, "
+            f"max {max(dists)} | p-valeur max {max(pvals):.3g}")
+    summary_lines.append(stat)
+    log(stat)
+    summary_lines.append(f"PSNR : mediane {np.median(finis):.2f} dB, "
+                          f"min {min(finis):.2f}, max {max(finis):.2f} dB")
     log(f"bilan Partie A: {n_authentic}/{n_needed} verdicts AUTHENTIC "
         f"(converged={out['converged']}, n_iters={out['n_iters']})")
     summary_lines.append(f"bilan: {n_authentic}/{n_needed} AUTHENTIC, "
@@ -343,7 +377,7 @@ def main() -> int:
     # =======================================================================
     log("=== Partie C: nonce absent du registre => KeyError attendu ===")
     try:
-        cm_main.verify(out["imgs_w"][:1], [999999])
+        cm_main.verify(premiere_marquee, [999999])
         c_ok = False
         log("ECHEC: un nonce inconnu aurait du lever KeyError")
     except KeyError as e:

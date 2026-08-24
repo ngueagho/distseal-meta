@@ -69,6 +69,7 @@ def main():
     ap.add_argument("--checkpoint", default="runs/ciphermark_64bits_checkpoint.pth")
     ap.add_argument("--corpus", default="corpus-colab/val")
     ap.add_argument("--n-images", type=int, default=40)
+    ap.add_argument("--batch", type=int, default=10)
     ap.add_argument("--hash-bits", type=int, default=256)
     ap.add_argument("--omega-bits", type=int, default=64)
     ap.add_argument("--rs-nsym", type=int, default=32)
@@ -94,38 +95,73 @@ def main():
     phash = PerceptualHash(n_bits=args.hash_bits, rs_nsym=args.rs_nsym,
                            backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
-    imgs = load_images(args.corpus, img_size, args.n_images, 0).to(DEVICE)
+    imgs_all = load_images(args.corpus, img_size, args.n_images, 0)
     cm = CipherMarkWam(wam=wam, phash=phash, keys=CipherMarkKeys.random(),
                        cfg=CipherMarkConfig(n_bits=args.omega_bits, max_fixed_point_iters=3),
                        registry=TraceRegistry())
-    log("marquage...")
-    out = cm.embed(imgs)
-    marquees = out["imgs_w"]
-    h_ori, h_mar = cm._phash_bytes(imgs), cm._phash_bytes(marquees)
-
-    res = []
-    d = [oct_diff(a, b) for a, b in zip(h_ori, h_mar)]
-    res.append(("marquage", float(np.mean(d)), int(max(d))))
-    log(f"marquage : {np.mean(d):.2f} oct (max {max(d)})")
 
     attaques = [("jpeg_q50", lambda x: valuemetric.JPEG()(x, None, quality=50)[0]),
                 ("jpeg_q30", lambda x: valuemetric.JPEG()(x, None, quality=30)[0]),
                 ("flou_k5",  lambda x: valuemetric.GaussianBlur()(x, None, kernel_size=5)[0]),
                 ("resize_0.5", lambda x: geometric.Resize()(x, None, size=0.5)[0]),
                 ("crop_0.9", lambda x: geometric.Crop()(x, None, size=0.9)[0])]
-    for nom, fn in attaques:
+
+    # Traitement par lots : a 5000 images le corpus marque ne tient pas en VRAM.
+    # La transplantation est jouee dans la meme boucle -- elle a besoin des
+    # originales ET des marquees, qui ne survivent pas au lot suivant.
+    d_marquage, d_attaque, echecs, h_mar_tous = [], {n: [] for n, _ in attaques}, {}, []
+    n_faux, n_total = 0, 0
+    nb = (len(imgs_all) + args.batch - 1) // args.batch
+    log(f"marquage de {len(imgs_all)} images en {nb} lots de {args.batch}")
+    for bi in range(nb):
+        imgs = imgs_all[bi * args.batch:(bi + 1) * args.batch].to(DEVICE)
+        if imgs.shape[0] < 2:
+            break                      # un lot d'une image ne permet aucun echange
+        out = cm.embed(imgs)
+        marquees = out["imgs_w"]
+        h_ori, h_mar = cm._phash_bytes(imgs), cm._phash_bytes(marquees)
+        h_mar_tous.extend(h_mar)
+        d_marquage.extend(oct_diff(a, b) for a, b in zip(h_ori, h_mar))
+
+        for nom, fn in attaques:
+            if nom in echecs:
+                continue
+            try:
+                x = fn(marquees.clone()).clamp(0, 1)
+                if x.shape[-2:] != (img_size, img_size):
+                    x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
+                                      align_corners=False, antialias=True)
+                d_attaque[nom].extend(oct_diff(a, b)
+                                      for a, b in zip(h_mar, cm._phash_bytes(x)))
+            except Exception as e:
+                echecs[nom] = repr(e)
+                log(f"{nom} echec : {e!r}")
+
+        # JUGE DE PAIX -- la vraie transplantation : le residu de l'image i est
+        # greffe sur une AUTRE image, puis presente sous le nonce d'origine.
+        # (Presenter l'image marquee j sous le nonce i serait un rejeu, pas une
+        # transplantation : c'est une autre attaque, mesuree ailleurs.)
+        autres = torch.roll(imgs, shifts=-1, dims=0)
+        forgees = (autres + (marquees - imgs)).clamp(0, 1)
         try:
-            x = fn(marquees.clone()).clamp(0, 1)
-            if x.shape[-2:] != (img_size, img_size):
-                x = F.interpolate(x, size=(img_size, img_size), mode="bilinear",
-                                  align_corners=False, antialias=True)
-            d = [oct_diff(a, b) for a, b in zip(h_mar, cm._phash_bytes(x))]
+            for r in cm.verify(forgees, image_ids=out["image_ids"]):
+                n_faux += int(r.verdict.value == "authentic")
+                n_total += 1
+        except Exception as e:
+            log(f"transplantation en echec sur le lot {bi} : {e!r}")
+        if (bi + 1) % 20 == 0 or bi + 1 == nb:
+            log(f"  lot {bi + 1}/{nb} -- {len(h_mar_tous)} images traitees")
+
+    res = [("marquage", float(np.mean(d_marquage)), int(max(d_marquage)))]
+    log(f"marquage : {np.mean(d_marquage):.2f} oct (max {max(d_marquage)})")
+    for nom, _ in attaques:
+        d = d_attaque[nom]
+        if d:
             res.append((nom, float(np.mean(d)), int(max(d))))
             log(f"{nom} : {np.mean(d):.2f} oct (max {max(d)})")
-        except Exception as e:
-            log(f"{nom} echec : {e!r}")
 
-    d = [oct_diff(h_mar[i], h_mar[(i + 1) % len(h_mar)]) for i in range(len(h_mar))]
+    d = [oct_diff(h_mar_tous[i], h_mar_tous[(i + 1) % len(h_mar_tous)])
+         for i in range(len(h_mar_tous))]
     autre_moy, autre_min = float(np.mean(d)), int(min(d))
     res.append(("AUTRE_image", autre_moy, autre_min))
     log(f"AUTRE image : {autre_moy:.2f} oct (min {autre_min})")
@@ -152,21 +188,14 @@ def main():
     print("\n" + "=" * 78)
     print("JUGE DE PAIX -- la transplantation est-elle encore possible ?")
     print("=" * 78)
-    n_faux = 0
-    for i in range(len(imgs)):
-        j = (i + 1) % len(imgs)
-        try:
-            rep = cm.verify(marquees[j:j+1], image_ids=[out["image_ids"][i]])[0]
-            if rep.verdict.value == "authentic": n_faux += 1
-        except Exception:
-            pass
-    print(f"  faux AUTHENTIC par transplantation : {n_faux}/{len(imgs)}")
+    print(f"  faux AUTHENTIC par transplantation : {n_faux}/{n_total}")
     print("  => liaison au contenu " + ("OPERANTE" if n_faux == 0 else "TOUJOURS INOPERANTE"))
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     json.dump({"hash_bits": args.hash_bits, "omega_bits": args.omega_bits,
                "rs_nsym": args.rs_nsym, "derives": res, "verdict_fenetre": verdict,
-               "faux_authentic_transplantation": n_faux, "n_images": len(imgs)},
+               "faux_authentic_transplantation": n_faux,
+               "n_transplantations": n_total, "n_images": len(h_mar_tous)},
               open(args.out, "w"), indent=2)
     log(f"resultats -> {args.out}")
     return 0

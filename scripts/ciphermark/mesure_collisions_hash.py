@@ -77,7 +77,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--corpus", default="corpus-colab/val")
     ap.add_argument("--n-images", type=int, default=200)
-    ap.add_argument("--n-bits", type=int, default=64)
+    ap.add_argument("--n-bits", type=int, default=256,
+                    help="largeur du hash perceptuel teste (et non celle d Omega)")
     ap.add_argument("--img-size", type=int, default=256)
     ap.add_argument("--batch", type=int, default=25)
     ap.add_argument("--seed", type=int, default=0)

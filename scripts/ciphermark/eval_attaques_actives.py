@@ -119,6 +119,7 @@ def main() -> int:
     ap.add_argument("--checkpoint", default="runs/ciphermark_64bits_checkpoint.pth")
     ap.add_argument("--corpus", default="corpus-colab/val")
     ap.add_argument("--n-images", type=int, default=20)
+    ap.add_argument("--batch", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="runs/eval_attaques_actives.json")
     args = ap.parse_args()
@@ -138,66 +139,89 @@ def main() -> int:
     phash = PerceptualHash(n_bits=HASH_BITS, backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
     n = args.n_images
-    imgs = load_images(args.corpus, img_size, 2 * n, args.seed).to(DEVICE)
-    src, other = imgs[:n], imgs[n:]      # src = marquees, other = images vierges
+    imgs_all = load_images(args.corpus, img_size, 2 * n, args.seed)
+    src_all, other_all = imgs_all[:n], imgs_all[n:]   # src = a marquer, other = vierges
     cm_cfg = CipherMarkConfig(n_bits=nbits, max_fixed_point_iters=3)
 
-    # --- la victime : un utilisateur legitime qui marque ses images ---------
+    # --- la victime, et l'utilisateur B du scenario de collage --------------
     keys_v = CipherMarkKeys.random()
     reg_v = TraceRegistry()
     victime = CipherMarkWam(wam=wam, phash=phash, keys=keys_v, cfg=cm_cfg, registry=reg_v)
-    out_v = victime.embed(src)
-    marquees, ids_v = out_v["imgs_w"], out_v["image_ids"]
-    log(f"{n} images marquees par la victime")
-
-    base = victime.verify(marquees, ids_v)
-    n_ok = sum(1 for r in base if r.verdict.value == "authentic")
-    log(f"reference (aller-retour honnete) : {n_ok}/{n} AUTHENTIC")
-
-    resultats = [summarize("reference_honnete", base,
-                            "doit etre 100 % AUTHENTIC -- sinon le reste n'a pas de sens")]
-
-    # --- A. TRANSPLANTATION -------------------------------------------------
-    # L'attaquant colle le filigrane de l'image i sur l'image vierge i.
-    # Approximation realiste du residu : (marquee - originale).
-    log("A. transplantation du filigrane sur une AUTRE image")
-    residu = marquees - src
-    forgees = (other + residu).clamp(0, 1)
-    rep = victime.verify(forgees, ids_v)          # meme nonce que l'original
-    resultats.append(summarize("A_transplantation", rep,
-                                "la dependance au contenu doit la rendre inoperante"))
-
-    # --- B. REJEU -----------------------------------------------------------
-    # Image marquee valide, mais presentee sous le nonce d'une AUTRE image.
-    log("B. rejeu -- image valide presentee sous un autre nonce")
-    ids_permutes = ids_v[1:] + ids_v[:1]
-    rep = victime.verify(marquees, ids_permutes)
-    resultats.append(summarize("B_rejeu_autre_nonce", rep,
-                                "le nonce fixe le keystream : un mauvais nonce doit echouer"))
-
-    # --- C. MIXUP -----------------------------------------------------------
-    # L'attaquant estime le signal en moyennant les residus de toutes les
-    # images marquees dont il dispose, puis l'applique a une image vierge.
-    log("C. mixup -- signal estime par moyenne des residus")
-    signal_estime = residu.mean(dim=0, keepdim=True)
-    forgees = (other + signal_estime).clamp(0, 1)
-    rep = victime.verify(forgees, ids_v)
-    resultats.append(summarize("C_mixup", rep,
-                                "efficace contre les tatouages content-agnostiques"))
-
-    # --- D. COLLAGE de deux identites --------------------------------------
-    # Deux utilisateurs marquent la MEME image ; on moyenne les deux resultats
-    # et on regarde si l'une des identites ressort.
-    log("D. collage -- moyenne de deux images marquees par des cles differentes")
     keys_b = CipherMarkKeys.random()
     reg_b = TraceRegistry()
     autre = CipherMarkWam(wam=wam, phash=phash, keys=keys_b, cfg=cm_cfg, registry=reg_b)
-    out_b = autre.embed(src)
-    melange = ((marquees + out_b["imgs_w"]) / 2).clamp(0, 1)
-    rep_v = victime.verify(melange, ids_v)
-    rep_b = autre.verify(melange, out_b["image_ids"])
-    resultats.append(summarize("D_collage_vu_par_A", rep_v, "moyenne de deux identites"))
-    resultats.append(summarize("D_collage_vu_par_B", rep_b, "moyenne de deux identites"))
+
+    # Traitement par lots. A 5000 images, garder tout le corpus marque en VRAM
+    # est impossible ; les scenarios sont donc joues lot par lot et seuls les
+    # rapports de verification (quelques scalaires) sont accumules.
+    #
+    # Le mixup fait exception : il exige la moyenne des residus de TOUTES les
+    # images dont dispose l'attaquant. La moyenne est donc accumulee ici puis
+    # appliquee dans une seconde passe, pour que l'attaquant reste exactement
+    # aussi fort qu'avec la version non decoupee.
+    acc = {k: [] for k in ("reference_honnete", "A_transplantation",
+                           "B_rejeu_autre_nonce", "D_collage_vu_par_A",
+                           "D_collage_vu_par_B")}
+    somme_residus, n_vus, ids_tous = None, 0, []
+    nb = (n + args.batch - 1) // args.batch
+    log(f"{n} images, {nb} lots de {args.batch}")
+    for bi in range(nb):
+        sl = slice(bi * args.batch, (bi + 1) * args.batch)
+        src, other = src_all[sl].to(DEVICE), other_all[sl].to(DEVICE)
+        out_v = victime.embed(src)
+        marquees, ids_v = out_v["imgs_w"], out_v["image_ids"]
+        ids_tous.extend(ids_v)
+
+        # reference : aller-retour honnete
+        acc["reference_honnete"].extend(victime.verify(marquees, ids_v))
+
+        residu = marquees - src
+        s = residu.sum(dim=0, keepdim=True)
+        somme_residus = s if somme_residus is None else somme_residus + s
+        n_vus += residu.shape[0]
+
+        # A. transplantation : le residu de l'image i colle sur la vierge i,
+        #    presentee sous le nonce d'origine.
+        acc["A_transplantation"].extend(
+            victime.verify((other + residu).clamp(0, 1), ids_v))
+
+        # B. rejeu : image valide presentee sous le nonce de la suivante.
+        acc["B_rejeu_autre_nonce"].extend(
+            victime.verify(marquees, ids_v[1:] + ids_v[:1]))
+
+        # D. collage : la meme image marquee par deux identites, moyennee.
+        out_b = autre.embed(src)
+        melange = ((marquees + out_b["imgs_w"]) / 2).clamp(0, 1)
+        acc["D_collage_vu_par_A"].extend(victime.verify(melange, ids_v))
+        acc["D_collage_vu_par_B"].extend(autre.verify(melange, out_b["image_ids"]))
+        if (bi + 1) % 10 == 0 or bi + 1 == nb:
+            log(f"  lot {bi + 1}/{nb} -- {n_vus} images")
+
+    # --- C. MIXUP : seconde passe, signal moyen sur tout le corpus ----------
+    log("C. mixup -- signal estime par moyenne des residus de tout le corpus")
+    signal_estime = somme_residus / n_vus
+    acc["C_mixup"] = []
+    for bi in range(nb):
+        sl = slice(bi * args.batch, (bi + 1) * args.batch)
+        forgees = (other_all[sl].to(DEVICE) + signal_estime).clamp(0, 1)
+        acc["C_mixup"].extend(victime.verify(forgees, ids_tous[sl]))
+
+    resultats = [
+        summarize("reference_honnete", acc["reference_honnete"],
+                  "doit etre 100 % AUTHENTIC -- sinon le reste n'a pas de sens"),
+        summarize("A_transplantation", acc["A_transplantation"],
+                  "la dependance au contenu doit la rendre inoperante"),
+        summarize("B_rejeu_autre_nonce", acc["B_rejeu_autre_nonce"],
+                  "le nonce fixe le keystream : un mauvais nonce doit echouer"),
+        summarize("C_mixup", acc["C_mixup"],
+                  "efficace contre les tatouages content-agnostiques"),
+        summarize("D_collage_vu_par_A", acc["D_collage_vu_par_A"],
+                  "moyenne de deux identites"),
+        summarize("D_collage_vu_par_B", acc["D_collage_vu_par_B"],
+                  "moyenne de deux identites"),
+    ]
+    log(f"reference (aller-retour honnete) : "
+        f"{resultats[0]['faux_authentic']}/{n} AUTHENTIC")
 
     # ------------------------------------------------------------------ bilan
     print()

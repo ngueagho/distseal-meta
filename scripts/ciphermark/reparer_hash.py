@@ -116,18 +116,42 @@ def sous_echantillonne(x, taille):
     return F.interpolate(y, size=x.shape[-2:], mode="bilinear", align_corners=False)
 
 
-def bits_de(phash, x):
-    return phash(x).cpu().numpy().astype(np.int8)
+def bits_de(phash, x, fn=None, batch=10):
+    """Hash binaire de x, par tranches, la variante fn appliquee dans la boucle.
+
+    Appliquer fn au corpus entier avant le decoupage annulerait le benefice du
+    traitement par lots : un flou gaussien sur 5000 images alloue autant que le
+    corpus lui-meme."""
+    fn = fn or (lambda z: z)
+    with torch.no_grad():
+        return np.concatenate([phash(fn(x[i:i + batch].to(DEVICE))).cpu().numpy()
+                               for i in range(0, len(x), batch)]).astype(np.int8)
 
 
 def dist_moy(A, B):
     return float((A != B).sum(axis=1).mean())
 
 
-def paires(A):
-    n = len(A)
-    d = [(A[i] != A[j]).sum() for i in range(n) for j in range(i + 1, n)]
-    return float(np.mean(d)), int(np.min(d))
+def paires(A, chunk=512):
+    """Distance de Hamming moyenne et minimale entre paires d'images distinctes.
+
+    La double boucle python d'origine coutait n(n-1)/2 appels numpy : a 5000
+    images cela ferait 12,5 millions d'iterations. Le meme calcul se ramene a
+    un produit matriciel sur l'encodage +-1, ou <a,b> = b_tot - 2d, donc
+    d = (b_tot - <a,b>) / 2. La diagonale (une image avec elle-meme) est
+    marquee a -1 et ecartee : toute vraie distance est positive ou nulle."""
+    b_tot = A.shape[1]
+    X = (torch.from_numpy(A.astype(np.float32)) * 2 - 1).to(DEVICE)
+    somme, compte, mini = 0.0, 0, b_tot
+    for i in range(0, len(X), chunk):
+        bloc = (b_tot - X[i:i + chunk] @ X.T) / 2
+        lignes = torch.arange(bloc.shape[0], device=bloc.device)
+        bloc[lignes, lignes + i] = -1.0
+        garde = bloc >= 0
+        somme += float(bloc[garde].sum())
+        compte += int(garde.sum())
+        mini = min(mini, int(bloc[garde].min().item()))
+    return somme / compte, mini
 
 
 def main() -> int:
@@ -135,6 +159,9 @@ def main() -> int:
     ap.add_argument("--checkpoint", default="runs/ciphermark_64bits_checkpoint.pth")
     ap.add_argument("--corpus", default="corpus-colab/val")
     ap.add_argument("--n-images", type=int, default=40)
+    ap.add_argument("--batch", type=int, default=10)
+    ap.add_argument("--hash-bits", type=int, default=256,
+                    help="largeur du hash perceptuel. Decouplee de celle d Omega : le hash ne traverse pas l image, il est recalcule par le verifieur, donc la capacite de l extracteur ne le contraint pas. En dessous de 128 bits les derives legitimes et le contenu etranger se recouvrent.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="runs/reparer_hash.json")
     args = ap.parse_args()
@@ -147,22 +174,36 @@ def main() -> int:
     nbits, img_size = int(cfg.args.nbits), int(cfg.args.img_size)
 
     dino = _try_load_dinov2()
-    log(f"PHash : {'DINOv2-small REEL' if dino is not None else 'repli DCT'}, nbits={nbits}")
-    phash = PerceptualHash(n_bits=nbits, backbone=dino or _DCTFallback()).to(DEVICE).eval()
+    log(f"PHash : {'DINOv2-small REEL' if dino is not None else 'repli DCT'}, "
+        f"Omega {nbits} bits, hash {args.hash_bits} bits")
+    phash = PerceptualHash(n_bits=args.hash_bits,
+                           backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
-    imgs = load_images(args.corpus, img_size, args.n_images, args.seed).to(DEVICE)
+    imgs = load_images(args.corpus, img_size, args.n_images, args.seed)
     cm = CipherMarkWam(wam=wam, phash=phash, keys=CipherMarkKeys.random(),
                        cfg=CipherMarkConfig(n_bits=nbits, max_fixed_point_iters=3),
                        registry=TraceRegistry())
-    log("marquage des images")
-    marquees = cm.embed(imgs)["imgs_w"]
+    # Marquage par lots, resultat garde en RAM et non en VRAM : les variantes
+    # de la partie 2 doivent toutes voir le meme corpus marque.
+    log(f"marquage de {len(imgs)} images par lots de {args.batch}")
+    morceaux = []
+    for i in range(0, len(imgs), args.batch):
+        morceaux.append(cm.embed(imgs[i:i + args.batch].to(DEVICE))["imgs_w"].cpu())
+        if (i // args.batch + 1) % 20 == 0:
+            log(f"  {min(i + args.batch, len(imgs))}/{len(imgs)} images marquees")
+    marquees = torch.cat(morceaux)
+    del morceaux
 
     # ---------------------------------------------------- 1. diagnostic marges
-    with torch.no_grad():
-        f_o = phash.features(imgs)
-        f_m = phash.features(marquees)
-        proj_o = (f_o @ phash.lsh.H.T).cpu().numpy()
-        proj_m = (f_m @ phash.lsh.H.T).cpu().numpy()
+    def _projections(x):
+        with torch.no_grad():
+            return np.concatenate([
+                (phash.features(x[i:i + args.batch].to(DEVICE))
+                 @ phash.lsh.H.T).cpu().numpy()
+                for i in range(0, len(x), args.batch)])
+
+    proj_o = _projections(imgs)
+    proj_m = _projections(marquees)
 
     marges = np.abs(proj_o)
     bascule = (np.sign(proj_o) != np.sign(proj_m))
@@ -192,7 +233,7 @@ def main() -> int:
 
     print()
     print("=" * 78)
-    print(f"2. REMEDES -- {args.n_images} images, hash de {nbits} bits")
+    print(f"2. REMEDES -- {args.n_images} images, hash de {args.hash_bits} bits")
     print("=" * 78)
     print(f"{'variante':<20}{'derive':>9}{'autre img':>11}{'ecart':>8}{'verdict':>12}")
     print("-" * 78)
@@ -200,8 +241,8 @@ def main() -> int:
     for nom, fn in variantes:
         try:
             with torch.no_grad():
-                bo = bits_de(phash, fn(imgs))
-                bm = bits_de(phash, fn(marquees))
+                bo = bits_de(phash, imgs, fn, args.batch)
+                bm = bits_de(phash, marquees, fn, args.batch)
             derive = dist_moy(bo, bm)
             inter, inter_min = paires(bo)
             ecart = inter - derive
@@ -235,7 +276,8 @@ def main() -> int:
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
-        json.dump({"nbits": nbits, "n_images": args.n_images,
+        json.dump({"nbits": nbits, "hash_bits": args.hash_bits,
+                   "n_images": args.n_images,
                    "bascule_globale": float(bascule.mean()),
                    "marge_mediane": float(np.median(marges)),
                    "variantes": res}, f, indent=2)
