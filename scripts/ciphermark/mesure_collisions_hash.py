@@ -123,6 +123,29 @@ def main() -> int:
     iu = np.triu_indices(n, k=1)
     d = dist[iu].astype(float)
 
+    # Un nombre de collisions ne dit rien sans les images concernees : deux
+    # photos reellement differentes au meme hash sont un defaut du hachage,
+    # deux images quasi uniformes -- un mur blanc, un ciel -- sont un cas
+    # degenere connu de tout hachage perceptuel. On nomme donc les paires, et
+    # on donne l'ecart-type des pixels pour trancher entre les deux.
+    plus_proches = []
+    ordre = np.argsort(d)[:min(20, len(d))]
+    for t in ordre:
+        i, j = int(iu[0][t]), int(iu[1][t])
+        ecart = lambda k: float(imgs[k].std())
+        plus_proches.append({
+            "distance": int(d[t]),
+            "image_a": os.path.basename(files[i]), "ecart_type_a": ecart(i),
+            "image_b": os.path.basename(files[j]), "ecart_type_b": ecart(j)})
+    if plus_proches:
+        print()
+        print("  PAIRES LES PLUS PROCHES (ecart-type des pixels entre "
+              "parentheses)")
+        for pp in plus_proches[:10]:
+            print(f"    {pp['distance']:>4} bits   "
+                  f"{pp['image_a']} ({pp['ecart_type_a']:.3f})   "
+                  f"{pp['image_b']} ({pp['ecart_type_b']:.3f})")
+
     # --- 3. equilibre et entropie effective des bits -----------------------
     p1 = B.mean(axis=0)                       # proportion de 1 par bit
     # entropie binaire par bit, sommee = entropie effective (bits independants)
@@ -176,7 +199,8 @@ def main() -> int:
                    "distance_min": int(d.min()), "distance_max": int(d.max()),
                    "distance_p1": float(np.percentile(d, 1)),
                    "entropie_effective": H, "bits_quasi_constants": bits_morts,
-                   "correlation_moyenne": corr_moy}, f, indent=2)
+                   "correlation_moyenne": corr_moy,
+                   "paires_les_plus_proches": plus_proches}, f, indent=2)
     log(f"resultats ecrits dans {args.out}")
     return 0
 
