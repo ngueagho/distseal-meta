@@ -295,3 +295,57 @@ reprise bit-exacte confirmee, aucune perte.
 - Sur ce pod, `/root` ne survit pas a un redemarrage complet ; `/workspace`
   oui. Ne jamais laisser une config ou un secret non versionne unique dans
   `/root` sans sauvegarde.
+
+---
+
+## Test du hash a 256 bits avec Omega a 64 bits (2026-08-24)
+
+### Erreur de conception du test : la mauvaise attaque mesuree
+**Symptome** : mon script `test_hash256_omega64.py` concluait
+"transplantation 0/40 -- liaison au contenu OPERANTE", alors que
+`eval_attaques_actives.py` mesurait 8/8 faux AUTHENTIC dans la meme
+configuration a 64 bits.
+**Cause** : mon "juge de paix" verifiait une image marquee `j` en lui passant
+le nonce de l'image `i`. C'est l'attaque B (rejeu par changement de nonce),
+qui echouait deja. La VRAIE transplantation fait l'inverse : elle garde le
+nonce et change l'image --
+`forgees = (other + (marquees - src))`, verifiees avec `ids` d'origine.
+**Ce qui a sauve la mesure** : avoir confronte le chiffre au script de
+reference plutot que de le prendre pour argent comptant. Une incoherence
+0/8 contre 8/8 dans la meme config ne pouvait pas etre ignoree.
+**Lecon** : quand un test "repare" soudainement un bug connu, verifier
+d'abord qu'il mesure bien la meme chose que le test qui l'avait revele.
+
+### Metrique aveugle : compter en octets ce qui bascule en bits
+**Constat** : la derive au marquage vaut 7.57/8 octets a 64 bits (94.6 %) et
+29.57/32 octets a 256 bits (92.4 %) -- allonger le hash ne change presque
+rien a la PROPORTION.
+**Cause** : Reed-Solomon corrige des OCTETS, mais l'instabilite est au niveau
+des BITS (~30 % de bascule au marquage). Si 30 % des bits basculent, un octet
+reste intact avec probabilite 0.7^8 = 5.7 %, donc ~94 % des octets different,
+QUELLE QUE SOIT la longueur du hash. La metrique en octets sature.
+**Consequence** : au niveau des bits, 256 bits separe pourtant bien mieux
+(marquage ~77 bits contre ~128 pour une autre image, soit ~6.6 sigma d'ecart
+contre ~3.3 sigma a 64 bits). L'information de separation EXISTE, mais un
+code correcteur par octets ne sait pas l'exploiter.
+**Piste qui en decoule** : comparer les hash par distance de Hamming avec
+seuil, au niveau du bit, plutot que de "corriger" par Reed-Solomon.
+
+### La verification legitime s'effondre a 256 bits
+**Mesure** : hash 256 bits, nsym=32 -> LEGITIME 2/8 AUTHENTIC (contre 8/8 a
+64 bits).
+**Cause** : la derive au marquage (29.57 octets) depasse largement la
+capacite de correction (16 octets), donc une image honnetement marquee n'est
+plus reconnue. Un systeme qui rejette tout est trivialement infalsifiable et
+parfaitement inutile -- d'ou la necessite de TOUJOURS mesurer le legitime et
+l'attaque cote a cote, jamais l'attaque seule.
+
+### `pkill -f <motif>` s'auto-matche (RECIDIVE)
+**Symptome** : deux taches de fond tuees avec le code 144, fichiers de sortie
+vides.
+**Cause** : `pkill -f verif_legit` place en tete de commande a matche la
+ligne de commande du shell qui le portait, se tuant lui-meme avec le test.
+**Note** : ce piege etait DEJA consigne dans ce journal (section Phase A,
+"pgrep -f <pattern> s'auto-matchait") et a quand meme ete reproduit.
+**Fix** : ne pas melanger pkill et lancement dans la meme commande, ou couper
+le motif (`"verif""_legit"`).
