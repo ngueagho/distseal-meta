@@ -90,6 +90,19 @@ def load_images(corpus, size, n, seed):
     return torch.stack(out)
 
 
+def bits_differents(a: bytes, b: bytes) -> int:
+    """Distance de Hamming en BITS entre deux hash.
+
+    La distance en octets sature : des que 30 % des bits basculent, environ
+    94 % des octets different (0,7^8 = 5,7 % d'octets intacts), et toutes les
+    conditions se retrouvent collees au maximum. Elle ne pouvait renseigner que
+    le dimensionnement Reed-Solomon, abandonne depuis. Le verifieur compare
+    desormais les hash bit a bit avec un seuil ; c'est donc cette distance-la
+    qu'il faut mesurer.
+    """
+    return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+
+
 def octets_differents(a: bytes, b: bytes) -> int:
     """Nombre d'octets differents -- l'unite que Reed-Solomon corrige."""
     return sum(1 for x, y in zip(a, b) if x != y)
@@ -148,8 +161,9 @@ def main() -> int:
 
     # Traitement par lots : a 5000 images, marquer tout d'un bloc epuise la
     # memoire du GPU. Seuls les hash (quelques octets par image) sont conserves.
-    d_marquage = []
+    d_marquage, b_marquage = [], []
     d_attaque = {nom: [] for nom, _ in attaques}
+    b_attaque = {nom: [] for nom, _ in attaques}
     echecs = {}
     h_mar_tous = []
     nb = (len(imgs_all) + args.batch - 1) // args.batch
@@ -161,6 +175,7 @@ def main() -> int:
         h_mar = cm._phash_bytes(marquees)
         h_mar_tous.extend(h_mar)
         d_marquage.extend(octets_differents(a, b) for a, b in zip(h_ori, h_mar))
+        b_marquage.extend(bits_differents(a, b) for a, b in zip(h_ori, h_mar))
         for nom, fn in attaques:
             if nom in echecs:
                 continue
@@ -171,6 +186,8 @@ def main() -> int:
                                       align_corners=False, antialias=True)
                 h_att = cm._phash_bytes(x)
                 d_attaque[nom].extend(octets_differents(a, b)
+                                      for a, b in zip(h_mar, h_att))
+                b_attaque[nom].extend(bits_differents(a, b)
                                       for a, b in zip(h_mar, h_att))
             except Exception as exc:
                 echecs[nom] = repr(exc)
@@ -211,6 +228,31 @@ def main() -> int:
                   f"{r['p95']:>7.1f}{r['max']:>6d}")
     print("=" * 80)
 
+    # --- le meme tableau, en BITS : c'est la grandeur sur laquelle le
+    #     verifieur decide reellement (hamming_threshold x n_bits).
+    nb_bits = args.hash_bits
+    tau = int(round(0.27 * nb_bits))
+    b_autre = [bits_differents(h_mar_tous[i], h_mar_tous[(i + 1) % len(h_mar_tous)])
+               for i in range(len(h_mar_tous))]
+    res_bits = [stats("marquage", b_marquage, nb_bits)]
+    for nom, _ in attaques:
+        if b_attaque[nom]:
+            res_bits.append(stats(nom, b_attaque[nom], nb_bits))
+    res_bits.append(stats("AUTRE_image", b_autre, nb_bits))
+    print()
+    print("=" * 80)
+    print(f"EN BITS -- ce que le verifieur mesure. Seuil tau = {tau}/{nb_bits}")
+    print("=" * 80)
+    print(f"{'cas':<16}{'moyenne':>9}{'median':>8}{'p95':>7}{'max':>6}{'sous tau':>10}")
+    print("-" * 80)
+    for r, source in zip(res_bits, [b_marquage] + [b_attaque[n] for n, _ in attaques
+                                                   if b_attaque[n]] + [b_autre]):
+        sous = float(np.mean(np.asarray(source) <= tau))
+        r["fraction_sous_tau"] = sous
+        print(f"{r['cas']:<16}{r['moyenne']:>9.2f}{r['median']:>8.1f}"
+              f"{r['p95']:>7.1f}{r['max']:>6d}{sous:>9.1%}")
+    print("=" * 80)
+
     legitimes = [r for r in res if r and r["cas"] != "AUTRE_image"]
     etranger = next((r for r in res if r and r["cas"] == "AUTRE_image"), None)
     if legitimes and etranger:
@@ -235,7 +277,8 @@ def main() -> int:
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
         json.dump({"nbits": nbits, "hash_bits": args.hash_bits,
-                   "taille_octets": taille, "resultats": res}, f, indent=2)
+                   "taille_octets": taille, "resultats": res,
+                   "resultats_bits": res_bits, "tau_bits": tau}, f, indent=2)
     log(f"resultats ecrits dans {args.out}")
     return 0
 
