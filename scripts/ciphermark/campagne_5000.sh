@@ -134,6 +134,35 @@ for etiquette in phaseB 96bits; do
         --out "$OUT/robustesse_${etiquette}_5000.json"
 done
 
+# ==================================== volet 4 : la phase D ==================
+# Le decodeur conditionne n'avait ete mesure que par la boucle de validation de
+# l'entrainement : 10 lots, un Omega deterministe. Ici, des milliers d'images
+# generees, la distribution complete de la bit_acc, et la liaison au contenu
+# sur les images GENEREES et non plus marquees a posteriori.
+CKD=""
+for c in /workspace/runs/phaseD_long/checkpoint/checkpoint.pt \
+         /workspace/runs/phaseD*/checkpoint/checkpoint.pt \
+         /workspace/ckpt/phaseD*.pt /workspace/ckpt/phaseD*.pth; do
+    [ -f "$c" ] && { CKD=$c; break; }
+done
+if [ -z "$CKD" ]; then
+    echo "SAUTE   phaseD_5000 : aucun checkpoint de phase D trouve" | tee -a "$BILAN"
+else
+    echo "== checkpoint phase D : $CKD"
+    # Fumee d'abord : le chargement du conditionneur et la forme des sorties
+    # se verifient en une minute, pas apres trois heures de calcul.
+    etape phaseD_fumee python3 scripts/ciphermark/eval_phaseD_omega.py \
+        --checkpoint "$CKD" --watermarker "$CK64" --corpus "$CORPUS" \
+        --n-images 16 --batch 8 --out "$OUT/phaseD_fumee.json"
+    if [ -f "$OUT/phaseD_fumee.fait" ]; then
+        etape phaseD_5000 python3 scripts/ciphermark/eval_phaseD_omega.py \
+            --checkpoint "$CKD" --watermarker "$CK64" --corpus "$CORPUS" \
+            --n-images "$N" --batch 8 --out "$OUT/phaseD_5000.json"
+    else
+        echo "SAUTE   phaseD_5000 : le test de fumee a echoue" | tee -a "$BILAN"
+    fi
+fi
+
 echo
 echo "================================ BILAN ================================"
 cat "$BILAN"
