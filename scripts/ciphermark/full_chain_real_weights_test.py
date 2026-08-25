@@ -61,7 +61,11 @@ from distseal.data.transforms import get_resize_transform
 from distseal.utils import optim as uoptim
 from distseal.utils.cfg import get_config_from_checkpoint, setup_model
 
-DEVICE = torch.device("cpu")
+# Ce script a ete ecrit pour tourner sur un portable sans GPU, et le device
+# etait fige a "cpu". A 5 images cela ne se voyait pas ; a 5000 il occupait un
+# seul coeur et avançait de 320 images en 1 h 40, contre une vingtaine de
+# minutes sur GPU. Le device suit desormais ce qui est disponible.
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def log(msg: str) -> None:
