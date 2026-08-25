@@ -150,14 +150,16 @@ class MaskgitVqgan(nn.Module):
         if quantize_before:
             x = self.quantize(x)
         if watermarker is not None and msg is not None and watermarker.latent_watermarker:
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
             preds_w = watermarker.embedder(x, msg_batch)
             x = watermarker.blender(x, preds_w)
         if not quantize_before:
             x = self.quantize(x)
         x = self.decoder(x)
         if watermarker is not None and msg is not None and not watermarker.latent_watermarker:
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
             x = x.clamp(0, 1)  # to [0,1]
             # if watermarker.embedder.yuv:  # take y channel only
             #     preds_w = watermarker.embedder(watermarker.rgb2yuv(x)[:, 0:1], msg_batch)
@@ -295,14 +297,16 @@ class MaskBitCompression(nn.Module):
         if quantize_before:
             x = self.quantize(x)
         if watermarker is not None and msg is not None and watermarker.latent_watermarker:
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
             preds_w = watermarker.embedder(x, msg_batch)
             x = watermarker.blender(x, preds_w)
         if not quantize_before:
             x = self.quantize(x)
         x = self.decoder(x)
         if watermarker is not None and msg is not None and not watermarker.latent_watermarker:
-            msg_batch = msg.repeat(x.shape[0], 1).to(x.device)
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
             x = x.clamp(0, 1)  # to [0,1]
             x = watermarker.embed(x, msg_batch, is_video=False)["imgs_w"]
         x = x * 2 - 1  # to [-1,1]
