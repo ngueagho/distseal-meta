@@ -180,11 +180,25 @@ def main() -> int:
         save_image(marquee, base + "_marquee.png")
 
         # ------------------------------------------------- verification ----
+        # Un verdict NO_WM avec une distance d'Omega nulle n'a rien
+        # d'incoherent : le verifieur combine DEUX controles, l'extraction du
+        # temoin et la comparaison du hash au contenu. Sans la distance de hash
+        # on ne saurait pas lequel des deux a rejete. On la recalcule donc
+        # exactement comme le verifieur.
+        h_obs = cm._phash_bytes(marquee)[0]
+        try:
+            h_ref = cm.registry.h_ref_for(ids[0])
+            d_hash = cm._bit_distance(h_obs, h_ref)
+        except Exception:
+            d_hash = None
+        tau = round(cm.cfg.hamming_threshold * cm.phash.n_bits)
         r = cm.verify(marquee, ids)[0]
         ligne = {"prompt": phrase, "mode": args.mode, "nonce": ids[0],
                  "secondes_generation": round(t_gen, 1),
                  "verdict": r.verdict.value, "distance": r.distance,
                  "total": r.total, "p_valeur": r.p_value,
+                 "distance_hash": d_hash, "tau_hash": tau,
+                 "contenu_ok": (d_hash is not None and d_hash <= tau),
                  "fichier": base + "_marquee.png"}
 
         if args.attaques:
@@ -197,19 +211,27 @@ def main() -> int:
                                                "distance": ra.distance,
                                                "p_valeur": ra.p_value}
         resultats.append(ligne)
-        log(f"    genere en {t_gen:.1f}s -> verdict {r.verdict.value.upper()}, "
-            f"distance {r.distance}/{r.total}, p = {r.p_value:.3g}")
+        log(f"    genere en {t_gen:.1f}s -> {r.verdict.value.upper()} | "
+            f"Omega {r.distance}/{r.total} | hash {d_hash}/{tau} "
+            f"({'contenu OK' if ligne['contenu_ok'] else 'CONTENU REJETE'})")
 
     # ------------------------------------------------------------ bilan -----
     print()
     print("=" * 88)
     print(f"CHAINE COMPLETE -- prompt vers verdict, mode {args.mode}")
     print("=" * 88)
-    print(f"{'prompt':<44}{'verdict':>14}{'distance':>10}{'p-valeur':>14}")
+    print(f"{'prompt':<40}{'verdict':>13}{'Omega':>9}{'hash':>10}{'p-valeur':>13}")
     print("-" * 88)
     for r in resultats:
-        print(f"{r['prompt'][:42]:<44}{r['verdict']:>14}"
-              f"{str(r['distance'])+'/'+str(r['total']):>10}{r['p_valeur']:>14.3g}")
+        print(f"{r['prompt'][:38]:<40}{r['verdict']:>13}"
+              f"{str(r['distance'])+'/'+str(r['total']):>9}"
+              f"{str(r['distance_hash'])+'/'+str(r['tau_hash']):>10}"
+              f"{r['p_valeur']:>13.3g}")
+    n_omega = sum(1 for r in resultats if r["distance"] == 0)
+    n_contenu = sum(1 for r in resultats if r["contenu_ok"])
+    print("-" * 88)
+    print(f"  Omega extrait sans erreur : {n_omega}/{len(resultats)}   "
+          f"contenu reconnu : {n_contenu}/{len(resultats)}")
     if any("apres_attaque" in r for r in resultats):
         print()
         print("  Apres attaque passive")
