@@ -349,3 +349,122 @@ ligne de commande du shell qui le portait, se tuant lui-meme avec le test.
 "pgrep -f <pattern> s'auto-matchait") et a quand meme ete reproduit.
 **Fix** : ne pas melanger pkill et lancement dans la meme commande, ou couper
 le motif (`"verif""_legit"`).
+
+---
+
+## 2026-08-24/25 — La campagne à 5000 images
+
+Consigne : refaire **tous** les tests, sur au moins 5000 images, parce qu'un
+système validé sur 20 échantillons et déclaré « pleinement fonctionnel » ne
+prouve rien.
+
+### Le pod perdu, et reconstruit
+
+`mm5zidc4x0rfwy` refuse de redémarrer : *This machine does not have the
+resources to deploy your pod*. Pénurie de capacité sur la machine physique, pas
+une perte de données. Nouveau pod `ejofaxn095ef8g` — mais **le volume réseau
+`16rikircio` n'y était pas attaché** : `/workspace` était un disque local vide
+de 30 Go. Tout a été reconstruit : dépôt cloné depuis GitHub puis 8 commits
+locaux transférés par *git bundle* en base64 à travers le proxy SSH (tranches
+de 3000 octets — le PTY limite une ligne à 4096 en mode canonique), rclone
+réinstallé, 7,2 Go de checkpoints retirés du Drive.
+
+**Leçon :** un volume réseau ne se rattache pas tout seul à un nouveau pod. Il
+faut partir de *Storage → le volume → Deploy*, sinon la console propose des
+machines d'autres datacenters qui ne peuvent pas le monter.
+
+### Cinq scripts incapables de monter en charge
+
+`mesure_derive_hash`, `eval_attaques_actives`, `test_hash256_omega64`,
+`reparer_hash`, `full_chain_real_weights_test` chargeaient tout le corpus puis
+appelaient `embed()` sur le tenseur entier. Correct à 20 images, OOM garanti à
+5000. Re-batchés, en préservant la sémantique : le mixup exige la moyenne des
+résidus de TOUTES les images, elle est donc accumulée sur une première passe et
+appliquée sur une seconde, pour que l'attaquant reste aussi fort. Et `paires()`
+dans `reparer_hash` faisait n(n-1)/2 appels numpy — 12,5 millions d'itérations
+à 5000 images ; ramené à un produit matriciel sur l'encodage ±1.
+
+### Trois défauts que seule l'échelle a révélés
+
+**1. Le hash couplé à Ω.** `mesure_derive_hash`, `reparer_hash` et surtout
+`full_chain_real_weights_test` construisaient le hash perceptuel à la largeur
+d'Ω. Depuis que la vérification compare les hash au lieu de les corriger, le
+garde-fou des 128 bits les faisait échouer à l'instanciation : **le test qui
+produit le « 5/5 AUTHENTIC » du mémoire ne pouvait plus tourner.** Le hash ne
+traverse pas l'image, sa largeur est indépendante. Corrigé par `--hash-bits`,
+256 par défaut.
+
+**2. `DEVICE = torch.device("cpu")` en dur** dans `full_chain`. Invisible à 5
+images ; à 5000, un seul cœur, 320 images en 1 h 40, soit 29 h pour finir contre
+vingt minutes sur GPU. Le petit échantillon ne cachait pas une erreur de
+calcul — il cachait un coût.
+
+**3. La métrique en octets est aveugle.** Dès que 30 % des bits basculent, 94 %
+des octets diffèrent (0,7⁸ = 5,7 % d'octets intacts). À 5000 images toutes les
+conditions se collent à 32/32 : JPEG q30 sort à 23,0 octets contre 31,7 pour une
+image étrangère. En bits, ces deux cas sont séparés d'un facteur trois. Cette
+métrique ne servait qu'au dimensionnement Reed-Solomon, abandonné.
+
+### Un corpus qui mentait
+
+Premier verdict sur `corpus-colab` : distance minimale nulle entre deux images.
+Le corpus contient 997 fichiers pour **332 scènes** — trois recadrages chacune.
+Passage à COCO : encore une collision, `ski_chelsea` contre `ski_cat` — deux
+noms de la même photo de chat dans les images d'exemple de scikit-image, que
+`build_corpus` ajoute systématiquement. Sur 5000 scènes COCO **pures** :
+**0 collision, distance minimale 12 bits, entropie effective 251,9/256.**
+
+**Leçon :** compter les collisions sans nommer les paires est inactionnable.
+Le script rapporte désormais les vingt paires les plus proches avec l'écart-type
+de leurs pixels, ce qui distingue un défaut du hachage d'un doublon de corpus.
+
+### Le résultat qui change le mémoire
+
+Attaques actives sur 5000 images marquées et 5000 vierges :
+
+| attaque | faux AUTHENTIC |
+|---|---|
+| transplantation | **5 / 5000 (0,10 %)** |
+| rejeu de nonce | 0 |
+| mixup | 0 |
+| collage (deux identités) | 2 et 7 |
+
+**14 faux AUTHENTIC sur 25 000.** À 20 images, ces quatre attaques donnaient
+toutes zéro. Le mémoire écrit « aucune des 100 transplantations testées n'est
+acceptée » et « aucune attaque n'a produit de faux AUTHENTIC » : **les deux
+phrases sont fausses à 5000.**
+
+Le mécanisme est identifié et cohérent : la dérive en bits montre que **0,1 %
+des images étrangères passent sous le seuil de 69/256** — exactement le taux de
+transplantations acceptées. Ce n'est pas du bruit, c'est le taux d'erreur
+intrinsèque du seuil à 27 %. La liaison au contenu n'est pas binaire : elle
+laisse passer une image sur mille.
+
+Second point caché par le petit échantillon : **15 images légitimes sur 5000 ne
+sont pas reconnues** sur un aller-retour parfaitement honnête, soit 0,3 % de
+faux négatifs sans aucune attaque.
+
+### L'injection latente est hors de portée
+
+Demande : entraîner le décodeur dans l'espace latent. Vérifié avant de lancer
+plutôt que supposé — `wam.py` fait `preds_w = self.embedder(latent, msgs)`, donc
+l'embedder doit accepter le latent. Or **notre embedder attend UN canal** : il
+tatoue la luminance. Testé : il refuse un tenseur à 128 canaux
+(`expected input[1, 128, 4, 4] to have 1 channels`). `latent_watermarker: true`
+planterait à la première convolution.
+
+Le faire tenir demanderait d'entraîner un couple embedder/extracteur *pour* le
+latent — une phase A entière à refaire. Voie retenue à la place : conditionner
+le décodeur de **SANA** (`dc-ae-f32c32-sana-1.0`), qui est un vrai décodeur
+latent de modèle texte→image. La phase D avait montré le principe sur un
+autoencodeur ImageNet qui ne se pilote pas.
+
+### Divers
+
+- `eval_phash_robustness` utilise `os.listdir` non récursif : il ne voyait pas
+  le sous-dossier `toutes/`. Il avance à ~600 images/heure, ce qui en fait le
+  point long de toute la campagne.
+- Récidive du `pgrep` qui se trouve lui-même dans sa propre ligne de commande.
+  Déjà consigné, refait deux fois. Filtrer sur le binaire, pas sur le motif.
+- Un spécificateur de format fautif (`{x:.4f }`, espace parasite) n'aurait
+  explosé qu'à l'impression finale, après des heures de calcul. Testé à part.
