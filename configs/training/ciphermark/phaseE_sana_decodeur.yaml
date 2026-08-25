@@ -1,0 +1,83 @@
+# Phase E -- conditionnement du decodeur de SANA sur Omega.
+#
+# Pourquoi ce decodeur et pas un autre
+# ------------------------------------
+# La phase D a conditionne dc-ae-f64c128-in-1.0, un autoencodeur ImageNet. Il
+# demontre le principe mais ne se pilote pas : rien ne permet de lui demander
+# une image a partir d'un texte. La chaine visee -- un prompt, une image
+# generee, un verdict -- exige un modele texte vers image.
+#
+# SANA utilise dc-ae-f32c32-sana-1.0 comme decodeur latent. Conditionner CE
+# decodeur-la, c'est rendre le tatouage in-model dans un vrai generateur : le
+# transformeur de diffusion produit un latent, notre decodeur le rend en image
+# et y grave Omega au passage. Aucun tatouage post-hoc, aucune etape ajoutee
+# apres la generation.
+#
+# Ce qui change par rapport a la phase D
+# --------------------------------------
+# Le modele, et lui seul. Le facteur de compression passe de 64 a 32 et les
+# canaux de 128 a 32, donc le decodeur a d'autres etages -- ils sont decouverts
+# par passe a blanc (decouvre_etages), jamais codes en dur : sur le DC-AE f64
+# la config annonçait 7 largeurs et l'observation en a trouve 6, dans l'ordre
+# inverse. Bornes, learning rates, poids de pertes et watermarker enseignant
+# restent ceux de la phase D, qui a atteint 0,989.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseE_sana_decodeur.yaml
+
+run_dir: /workspace/runs/phaseE_sana
+
+imagenet:
+    data_dir: /workspace/corpus-eval-12k
+    batch_size: 4
+
+model: dc-ae-f32c32-sana-1.0
+
+# --- conditionnement (identique a la phase D) -------------------------------
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+# --- watermarker enseignant -------------------------------------------------
+# Post-hoc en pixels : notre embedder tatoue la luminance et n'a qu'UN canal
+# d'entree, il ne peut pas prendre un latent (verifie : il refuse un tenseur a
+# 32 ou 128 canaux). L'injection latente exigerait un couple embedder et
+# extracteur entraine pour cela -- un autre chantier.
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes (identiques a la phase D) ---------------------------------------
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+# Le watermarker enseignant travaille en 256 px : la resolution le suit.
+resolution: 256
+train_dataset: imagenet
+
+# --- duree ------------------------------------------------------------------
+max_steps: 40000
+num_batches: 10
+evaluate_steps: 500
+# Sauvegardes frequentes : un checkpoint exploitable doit exister meme si le
+# pod s'arrete en cours de nuit.
+save_checkpoint_steps: 2000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 300
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002
