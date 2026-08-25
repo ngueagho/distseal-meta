@@ -54,7 +54,20 @@ def charge_sana(modele: str):
     from diffusers import SanaPipeline
     log(f"chargement de {modele}")
     pipe = SanaPipeline.from_pretrained(modele, torch_dtype=torch.bfloat16)
-    pipe = pipe.to(DEVICE)
+    # L'encodeur de texte de SANA est un Gemma de 2 milliards de parametres :
+    # environ 5 Go en bf16, auxquels s'ajoutent le transformeur et le VAE. Le
+    # GPU partage la carte avec le reste de la campagne, donc on decharge vers
+    # la RAM et on ne remonte que le module actif. La machine a 409 Go de RAM
+    # et 255 coeurs : le cout est quelques secondes par image, pas un echec.
+    libre = 0
+    if torch.cuda.is_available():
+        libre = (torch.cuda.get_device_properties(0).total_memory
+                 - torch.cuda.memory_reserved(0)) / 2**30
+    if libre < 10:
+        log(f"{libre:.1f} Go de VRAM libres : dechargement vers la RAM active")
+        pipe.enable_model_cpu_offload()
+    else:
+        pipe = pipe.to(DEVICE)
     pipe.set_progress_bar_config(disable=True)
     return pipe
 
