@@ -135,6 +135,16 @@ def build_attacks():
     for f in (0.8, 1.2):
         c = valuemetric.Contrast()
         A.append((f"contraste_{f}", lambda x, c=c, f=f: c(x, None, f)[0]))
+    # Bruit additif gaussien. L'introduction du memoire annonce des attaques
+    # passives "compression, recadrage, bruit additif" -- les deux premieres
+    # etaient couvertes, la troisieme manquait. Ecarts-types fixes et non
+    # tires au hasard, comme pour toutes les autres conditions, pour que les
+    # chiffres soient reproductibles. 0,02 correspond a un bruit de capteur
+    # discret, 0,10 a une degradation nettement visible.
+    for sd in (0.02, 0.05, 0.10):
+        n = valuemetric.GaussianNoise()
+        A.append((f"bruit_std{sd}",
+                  lambda x, n=n, sd=sd: n(x, None, std=sd)[0].clamp(0, 1)))
     return A
 
 
