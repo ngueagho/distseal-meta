@@ -1,0 +1,120 @@
+#========================================================================================
+# PHASE G -- INJECTION LATENTE : entrainer le couple embedder/extracteur DANS
+# l'espace latent.
+#
+# POURQUOI CE RUN EXISTE
+# ----------------------
+# Toutes les phases precedentes tatouent des PIXELS. La phase D conditionne le
+# decodeur pour qu'il reproduise un tatouage pixel applique a posteriori. Rien
+# n'a jamais ete grave dans le latent lui-meme.
+#
+# Verifie le 2026-08-25 avant de lancer quoi que ce soit : le chemin latent de
+# wam.py fait `preds_w = self.embedder(latent, msgs)` -- il passe le LATENT a
+# l'embedder. Or unet_small2_yuv_quant tatoue la luminance et n'a qu'UN canal
+# d'entree. Teste : il refuse un tenseur a 32 canaux. C'est pourquoi
+# `latent_watermarker: true` n'avait jamais pu tourner : il aurait plante a la
+# premiere convolution, apres le chargement du modele et du corpus.
+#
+# CE QUI CHANGE, ET RIEN D'AUTRE
+# ------------------------------
+# Copie de phaseA2_64bits_stable.yaml -- le run qui a porte la bit_acc a 0.9998
+# -- avec trois differences, toutes consequences d'une seule decision :
+#
+#   embedder_model : unet_small2_yuv_quant -> unet_small2_latent32
+#   autoencoder    : (aucun)               -> DCAEf32c32
+#   latent_layer   : (sans objet)          -> input
+#
+# L'extracteur ne change PAS. Dans ce schema on tatoue le latent, on decode, et
+# l'extracteur lit l'image decodee comme d'habitude : convnext_tiny reste
+# valable tel quel. C'est aussi ce qui rend l'experience interpretable -- si la
+# bit_acc s'effondre, la cause est du cote de l'injection, pas de la lecture.
+#
+# POURQUOI DCAEf32c32 ET PAS f64c128
+# ----------------------------------
+# C'est l'autoencodeur de SANA. Un embedder entraine sur CE latent-la pourra
+# alimenter directement la chaine prompt -> image -> verdict, au lieu de rester
+# une demonstration isolee.
+#
+# CE QUE LA GEOMETRIE IMPOSE
+# --------------------------
+# A 256 px le latent fait 8x8, contre 256x256 pour l'image : 64 fois moins de
+# surface pour porter les memes 64 bits. Le ratio tombe de 1024 px/bit a 1 px
+# par bit. La phase A avait etabli que le nombre de pixels par bit est la
+# variable qui gouverne le plafond ; ce run l'emmene donc dans une zone jamais
+# exploree, et un echec ici serait un resultat, pas un bug. Les 32 canaux de
+# profondeur compensent en partie -- 32x8x8 = 2048 valeurs pour 64 bits.
+#
+# PRECAUTION DE LECTURE
+# ---------------------
+# Ne rien conclure avant l'epoque ~800. Sur ce projet les lectures precoces
+# sont trompeuses : un run paraissait mort aux epoques 105 et 208 et a pique a
+# la 1064. Toujours rapporter le MEILLEUR bit_acc atteint.
+#
+# Usage (sur le pod, depuis /workspace/code-memoire) :
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseG_latent32.yaml
+#========================================================================================
+output_dir: "/workspace/runs/phaseG_latent32"
+
+dataset:
+    train_dir: /workspace/corpus-eval-12k/toutes
+    val_dir: /workspace/corpus-latent-val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+# --- LE changement -----------------------------------------------------------
+embedder_model: unet_small2_latent32
+extractor_model: convnext_tiny
+autoencoder: DCAEf32c32
+latent_layer: input
+latent_layer_watermarker_input: true
+latent_layer_normalization: false
+
+nbits: 64
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=1200
+
+seed: 0
+
+# Le lot descend de 16 a 8 : l'autoencodeur encode et decode a chaque pas, et
+# le GPU est partage avec les autres travaux en cours.
+batch_size: 8
+batch_size_eval: 8
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 1200
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 100
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1200,warmup_lr_init=1e-8,warmup_t=50
+optimizer: AdamW,lr=2e-4
+full_eval_freq: 200
+finetune_detector_start: 2000
+saveckpt_freq: 999999

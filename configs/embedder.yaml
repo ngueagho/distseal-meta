@@ -338,3 +338,34 @@ unet_tiny_yuv_quant:
     normalization: 'batch'
     z_channels_mults: [1, 1, 2, 4, 8]
     last_tanh: True
+# Embedder pour l'injection LATENTE (CipherMark, phase G).
+# ---------------------------------------------------------------------------
+# unet_small2_yuv_quant tatoue la luminance : in_channels=1. Le chemin latent
+# de wam.py fait `preds_w = self.embedder(latent, msgs)` et lui passe le latent
+# lui-meme, qui a 32 canaux pour DCAEf32c32 -- celui de SANA. D'ou cette
+# entree, identique en tout point sauf les canaux d'entree et de sortie.
+#
+# La resolution spatiale change aussi : a 256 px le latent fait 8x8, contre
+# 256x256 pour l'image. Les quatre etages de sous-echantillonnage
+# (z_channels_mults) ramenent donc 8x8 a 1x1, ce qui reste valide mais laisse
+# peu de place. z_channels passe de 16 a 32 pour compenser la perte de surface
+# par de la profondeur.
+#
+# L'extracteur, lui, ne change pas : il lit l'IMAGE DECODEE, pas le latent.
+unet_small2_latent32:
+  msg_processor:
+    nbits: 16
+    hidden_size: 32
+    msg_processor_type: binary+concat
+  unet:
+    in_channels: 32
+    out_channels: 32
+    z_channels: 32
+    num_blocks: 8
+    activation: relu
+    normalization: batch
+    z_channels_mults:
+    - 1
+    - 2
+    - 4
+    last_tanh: true
