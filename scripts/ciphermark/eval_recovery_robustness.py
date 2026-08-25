@@ -156,6 +156,11 @@ def main() -> int:
     ap.add_argument("--batch", type=int, default=10)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--no-attacks", action="store_true")
+    ap.add_argument("--conditions", default=None,
+                    help="sous-ensemble de conditions, separees par des virgules "
+                         "(prefixes acceptes). Rejouer les vingt sur CPU coute "
+                         "vingt-quatre heures alors qu'une seule famille est "
+                         "neuve. Le temoin 'aucune' est toujours conserve.")
     ap.add_argument("--out", default="runs/eval_recovery_robustness.json")
     args = ap.parse_args()
 
@@ -181,6 +186,12 @@ def main() -> int:
     log(f"{len(files)} images chargees depuis {args.corpus}")
 
     attacks = [("aucune", lambda x: x)] if args.no_attacks else build_attacks()
+    if args.conditions:
+        voulues = [c.strip() for c in args.conditions.split(",") if c.strip()]
+        attacks = [(n, f) for n, f in attacks
+                   if n == "aucune" or any(n.startswith(v) for v in voulues)]
+        if len(attacks) <= 1:
+            raise SystemExit(f"aucune condition ne correspond a {voulues}")
     log(f"{len(attacks)} conditions a evaluer")
 
     cm_cfg = CipherMarkConfig(n_bits=nbits, max_fixed_point_iters=3)
