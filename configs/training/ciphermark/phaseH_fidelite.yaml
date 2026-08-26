@@ -1,0 +1,127 @@
+#========================================================================================
+# PHASE H -- RENDRE LE FILIGRANE INVISIBLE, SANS PERDRE L'ACQUIS
+#
+# LE CONSTAT
+# ----------
+# Le tatoueur de reference decode parfaitement -- bit_acc 0,9998 -- mais son
+# filigrane SE VOIT : PSNR median de 22,48 dB mesure sur 5000 images, la ou
+# l'etat de l'art se situe entre 38 et 45 dB. Sur une image chargee en Colab,
+# on distingue nettement des rayures diagonales.
+#
+# La cause est dans la recette de la phase A2, et ce n'etait pas un oubli :
+#     lambda_i: 0.0        aucune perte de fidelite perceptuelle
+#     lambda_d: 0.0        aucun discriminateur
+#     attenuation: null    aucun masquage psychovisuel
+#     perceptual_loss: mse
+# Elle n'optimisait QUE la decodabilite. C'est precisement ce qui a permis de
+# franchir le point stationnaire trivial ou tout stagnait a 0,60.
+#
+# POURQUOI ON AFFINE PLUTOT QUE DE REPARTIR DE ZERO
+# -------------------------------------------------
+# docs/phaseA-mur-de-capacite.md consigne que lambda_i = 0.1 applique DES LE
+# DEPART faisait s'effondrer l'entrainement a bit_acc 0,50 -- le point
+# stationnaire, de nouveau. Repartir de zero avec la fidelite activee, c'est
+# rejouer cet echec.
+#
+# On part donc du checkpoint qui fonctionne et on l'affine. Le reseau sait deja
+# encoder et lire ; il ne lui reste qu'a apprendre a le faire discretement.
+#
+# CE QUI CHANGE, ET RIEN D'AUTRE
+# ------------------------------
+#     resume_from        -> le checkpoint 64 bits, epoque 1200, bit_acc 0,9998
+#     attenuation        -> jnd_1_1  (1 canal, comme l'embedder luminance)
+#     lambda_i    0.0    -> 0.02     (modeste : 0,1 avait collapse de zero)
+#     perceptual_loss mse -> yuv     (la valeur de la recette DistSeal)
+#     scaling_w   0.5    -> 0.1152   sans calendrier
+#     lr          2e-4   -> 5e-5     on affine, on ne reapprend pas
+#
+# Le discriminateur reste desactive (lambda_d = 0, disc_start tres haut) : ce
+# serait un second facteur, et une instabilite ne serait plus attribuable.
+#
+# SUR scaling_w -- LE PIEGE A EVITER
+# ----------------------------------
+# La phase A2 declarait scaling_w: 0.5 avec un calendrier cosinus decroissant,
+# et l'entrainement l'a terminee a 0.1152. Reprendre avec 0.5 et un calendrier
+# remettrait le filigrane a l'amplitude du DEBUT -- 8 dB de PSNR, un tiers de
+# pixels satures. On fixe donc directement 0.1152, sans calendrier.
+#
+# CE QU'ON ATTEND, ET COMMENT LE LIRE
+# -----------------------------------
+# La bit_acc va d'abord BAISSER : l'extracteur n'a jamais vu de filigrane
+# masque par une carte JND. Elle doit remonter. Ce qu'on surveille, c'est le
+# couple (PSNR, bit_acc) et non la bit_acc seule.
+#     succes  : PSNR >= 30 dB avec bit_acc >= 0,99
+#     mitige  : PSNR 26-30 dB avec bit_acc >= 0,99  (deja mieux que 22,5)
+#     echec   : bit_acc bloquee sous 0,90, ou retour a 0,50
+#
+# Un repere gratuit connu : baisser scaling_w a 0,08 A L'INFERENCE donne deja
+# 25,7 dB sans perdre un bit. La phase H doit faire mieux que ça pour valoir
+# son cout.
+#
+# Lancement :
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseH_fidelite.yaml
+#========================================================================================
+output_dir: "/workspace/runs/phaseH_fidelite"
+
+resume_from: "/workspace/ckpt/base_64bits.pth"
+resume_optimizer_state: false      # nouveaux poids de pertes : l'etat Adam
+                                   # d'avant ne correspond plus
+resume_disc: false
+
+dataset:
+    train_dir: /workspace/corpus-eval-12k/toutes
+    val_dir: /workspace/corpus-latent-val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+
+# --- LE point delicat : pas de calendrier, l'amplitude reelle du checkpoint ---
+scaling_w: 0.1152
+scaling_w_schedule: null
+scaling_i: 1.0
+
+# --- LE changement : la fidelite entre en jeu --------------------------------
+attenuation: jnd_1_1
+attenuation_config: configs/attenuation.yaml
+lambda_dec: 1.0
+lambda_i: 0.02
+perceptual_loss: yuv
+
+# --- inchange ----------------------------------------------------------------
+lambda_det: 0.0
+lambda_d: 0.0
+disc_start: 999999
+disc_num_layers: 3
+disc_in_channels: 1
+maskbit_disc: true
+maskbit_maxpool: 8
+balanced: false
+total_gnorm: 1.0
+seed: 0
+batch_size: 16
+batch_size_eval: 8
+workers: 16
+ae_quantize: true
+videowam_step_size: 8
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+epochs: 300
+iter_per_epoch: 200
+eval_freq: 5
+saveimg_freq: 25
+iter_per_valid: 8
+full_eval_freq: 50
+finetune_detector_start: 2000
+saveckpt_freq: 999999
+scheduler: CosineLRScheduler,lr_min=1e-7,t_initial=300,warmup_lr_init=1e-8,warmup_t=10
+optimizer: AdamW,lr=0.00005
