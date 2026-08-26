@@ -15,3 +15,10 @@ __pycache__/
 *.bin
 ciphermark_sse_cache/
 rclone.conf
+
+# Corpus d'evaluation construits par scripts/ciphermark/build_corpus.py.
+# Meme regle que corpus-colab/ : 400 Mo d'images se reconstruisent en dix
+# minutes, alors qu'un historique git ne se degonfle jamais.
+corpus-coco-5000/
+corpus-local-998/
+corpus-eval-12k/
