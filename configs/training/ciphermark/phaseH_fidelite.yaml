@@ -50,8 +50,9 @@
 # La bit_acc va d'abord BAISSER : l'extracteur n'a jamais vu de filigrane
 # masque par une carte JND. Elle doit remonter. Ce qu'on surveille, c'est le
 # couple (PSNR, bit_acc) et non la bit_acc seule.
-#     succes  : PSNR >= 30 dB avec bit_acc >= 0,99
-#     mitige  : PSNR 26-30 dB avec bit_acc >= 0,99  (deja mieux que 22,5)
+#     succes  : PSNR >= 38 dB avec bit_acc >= 0,99   (etat de l'art)
+#     bon     : PSNR 34-38 dB avec bit_acc >= 0,99
+#     mitige  : PSNR 30-34 dB avec bit_acc >= 0,99   (deja +8 dB sur l'actuel)
 #     echec   : bit_acc bloquee sous 0,90, ou retour a 0,50
 #
 # Un repere gratuit connu : baisser scaling_w a 0,08 A L'INFERENCE donne deja
@@ -84,9 +85,29 @@ extractor_model: convnext_tiny
 nbits: 64
 hidden_size_multiplier: 1
 
-# --- LE point delicat : pas de calendrier, l'amplitude reelle du checkpoint ---
-scaling_w: 0.1152
-scaling_w_schedule: null
+# --- amplitude : partir fort, puis descendre --------------------------------
+# Balayage mesure le 2026-08-26 sur le checkpoint reel, atténuation JND active,
+# extracteur NON reentraine :
+#
+#   scaling_w   PSNR      bit_acc
+#   0.1152      48,70 dB  0,4902   illisible
+#   0.3         40,40 dB  0,5068   illisible
+#   0.6         34,39 dB  0,5645   le signal reapparait
+#   1.0         29,97 dB  0,7148   lisible partiellement
+#   (sans JND)  22,50 dB  1,0000   la reference actuelle
+#
+# Deux lectures. Le masque JND permet un filigrane BEAUCOUP plus fort tout en
+# restant moins visible -- a 1.0, neuf fois l'amplitude actuelle, on est encore
+# a 30 dB contre 22,5 sans masque. Et a 1.0 l'extracteur lit deja 0,7148 sans
+# le moindre pas d'apprentissage : il y a du signal exploitable, donc du
+# gradient. C'est precisement ce qui manquait aux essais qui collapsaient a 0,50.
+#
+# D'ou le calendrier de la recette DistSeal, adapte a 300 epoques : demarrer a
+# 1.0 pour que l'apprentissage s'amorce, puis descendre vers 0.3 pour gagner
+# l'invisibilite une fois que l'extracteur sait lire. Le plancher de 0.3
+# correspond a 40,4 dB mesures.
+scaling_w: 1.0
+scaling_w_schedule: Cosine,scaling_min=0.3,start_epoch=40,epochs=300
 scaling_i: 1.0
 
 # --- LE changement : la fidelite entre en jeu --------------------------------
