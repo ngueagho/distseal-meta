@@ -1,0 +1,115 @@
+#========================================================================================
+# PHASE I -- L'INJECTION LATENTE, MAIS DANS UN LATENT QUI A LA CAPACITE
+#
+# L'HYPOTHESE, ET D'OU ELLE VIENT
+# -------------------------------
+# La phase G a tatoue le latent du DC-AE de SANA et a plafonne a bit_acc 0,6296
+# apres 243 epoques. Le diagnostic est venu en comparant les dimensions avec
+# celles que DistSeal utilise :
+#
+#   espace                       latent            valeurs   valeurs/bit
+#   pixel (phase A)              256x256 x 1        65 536      1024
+#   MaskGIT-VQGAN (DistSeal)     16x16   x 256      65 536      1024
+#   DC-AE f32c32 (phase G)        8x8    x  32       2 048        32
+#
+# DistSeal a choisi un autoencodeur dont le latent conserve EXACTEMENT autant
+# de valeurs que l'image en pixels. Nous etions descendus trente-deux fois plus
+# bas. Or la phase A avait etabli que le nombre de valeurs par bit gouverne le
+# plafond de capacite, et c'est a 1024 valeurs par bit qu'elle avait atteint
+# 0,9998.
+#
+# CE RUN TESTE DONC UNE PREDICTION, PAS UNE INTUITION : si le plafond de la
+# phase G vient bien du ratio et non du principe meme de l'injection latente,
+# alors le meme entrainement sur MaskGIT-VQGAN doit franchir 0,63 nettement.
+#
+#   * bit_acc depasse franchement 0,63  -> le ratio EST la variable, la phase G
+#     etait limitee par son autoencodeur et non par la methode ;
+#   * bit_acc replafonne vers 0,63      -> le ratio n'explique pas tout, et
+#     l'injection latente a un probleme propre. Resultat negatif, mais decisif.
+#
+# CE QUI CHANGE PAR RAPPORT A LA PHASE G
+# --------------------------------------
+#   autoencoder     DCAEf32c32            -> MaskgitVqgan
+#   embedder_model  unet_small2_latent32  -> unet_small2_latent256
+#   latent_layer    input                 -> input_after_quantize
+#
+# Le reste est identique : memes pertes, meme optimiseur, meme calendrier, meme
+# corpus. Sans cela une difference de resultat ne serait attribuable a rien.
+#
+# SUR latent_layer
+# ----------------
+# input_after_quantize est ce qu'utilise la config de reference de DistSeal
+# (configs/training/autoregressive/inmodel_latent_decoder.yaml). MaskGIT est un
+# modele a quantification vectorielle : 1024 entrees de dictionnaire, dimension
+# 256. Tatouer APRES la quantification evite que celle-ci n'efface le residu.
+#
+# PRECAUTION DE LECTURE
+# ---------------------
+# Ne rien conclure avant l'epoque ~200. Sur ce projet les lectures precoces
+# sont trompeuses -- un run paraissait mort aux epoques 105 et 208 et a pique a
+# la 1064. Toujours rapporter le MEILLEUR bit_acc atteint.
+#
+# Lancement :
+#   torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/phaseI_latent_maskgit.yaml
+#========================================================================================
+output_dir: "/workspace/runs/phaseI_latent_maskgit"
+
+dataset:
+    train_dir: /workspace/corpus-eval-12k/toutes
+    val_dir: /workspace/corpus-latent-val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+# --- LE changement -----------------------------------------------------------
+embedder_model: unet_small2_latent256
+extractor_model: convnext_tiny
+autoencoder: MaskgitVqgan
+latent_layer: input_after_quantize
+latent_layer_watermarker_input: true
+latent_layer_normalization: false
+
+nbits: 64
+hidden_size_multiplier: 1
+scaling_w: 0.5
+scaling_w_schedule: Cosine,scaling_min=0.1,start_epoch=150,epochs=1200
+scaling_i: 1.0
+
+seed: 0
+batch_size: 8
+batch_size_eval: 8
+workers: 24
+
+attenuation: null
+ae_quantize: true
+videowam_step_size: 8
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 1200
+iter_per_epoch: 200
+eval_freq: 20
+saveimg_freq: 100
+iter_per_valid: 4
+full_eval_freq: 200
+finetune_detector_start: 2000
+saveckpt_freq: 999999
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=1200,warmup_lr_init=1e-8,warmup_t=50
+optimizer: AdamW,lr=0.0002

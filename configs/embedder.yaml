@@ -369,3 +369,32 @@ unet_small2_latent32:
     - 2
     - 4
     last_tanh: true
+
+# Embedder pour l'injection latente dans MaskGIT-VQGAN (CipherMark, phase I).
+# ---------------------------------------------------------------------------
+# Le latent de maskgit-vqgan-imagenet-f16-256 fait 256 canaux sur 16x16, soit
+# 65 536 valeurs -- exactement autant que l'image en pixels. C'est ce qui
+# distingue ce modele du DC-AE f32c32, dont le latent n'en compte que 2 048.
+#
+# Le ratio passe donc de 32 valeurs par bit a 1024, c'est-a-dire le regime ou
+# la phase A avait atteint 0,9998. C'est l'hypothese que cette phase teste.
+#
+# Trois etages de sous-echantillonnage seulement : 16x16 -> 2x2. Au-dela on
+# perdrait toute structure spatiale.
+unet_small2_latent256:
+  msg_processor:
+    nbits: 16
+    hidden_size: 32
+    msg_processor_type: binary+concat
+  unet:
+    in_channels: 256
+    out_channels: 256
+    z_channels: 64
+    num_blocks: 8
+    activation: relu
+    normalization: batch
+    z_channels_mults:
+    - 1
+    - 2
+    - 4
+    last_tanh: true
