@@ -137,12 +137,16 @@ def main() -> int:
     if args.mode == "inmodel":
         from distseal.ciphermark.conditioner import OmegaConditioner, decouvre_etages
         decodeur = pipe.vae.decoder if hasattr(pipe.vae, "decoder") else pipe.vae
+        # Le pipeline est charge en bfloat16 : une sonde en float32 ferait
+        # echouer la premiere convolution du VAE.
+        dtype = next(pipe.vae.parameters()).dtype
         with torch.no_grad():
-            sonde = torch.zeros(1, 3, args.taille, args.taille, device=DEVICE)
+            sonde = torch.zeros(1, 3, args.taille, args.taille,
+                                device=DEVICE, dtype=dtype)
             etages = decouvre_etages(decodeur, pipe.vae.encoder(sonde))
-        cond = OmegaConditioner(nbits=nbits, channels=[c for _, _, c in etages],
-                                gamma_max=0.3, beta_max=0.1).to(DEVICE)
-        cond.attach([m for _, m, _ in etages])
+        canaux = [c for _, _, c in etages]
+        log(f"etages decouverts dans le VAE du pipeline : {canaux}")
+
         ck = torch.load(args.phaseE_checkpoint, map_location=DEVICE, weights_only=False)
         sd = ck.get("state_dict", ck)
         pref = {k.split("omega_conditioner.", 1)[1]: v
@@ -150,8 +154,28 @@ def main() -> int:
         if not pref:
             raise SystemExit("le checkpoint ne contient aucun poids de "
                              "conditionneur : ce n'est pas un checkpoint de phase E")
-        manquants = cond.load_state_dict(pref, strict=False)
-        log(f"conditionneur charge ({len(pref)} tenseurs)")
+
+        cond = OmegaConditioner(nbits=nbits, channels=canaux,
+                                gamma_max=0.3, beta_max=0.1).to(DEVICE)
+        cond.attach([m for _, m, _ in etages])
+        # strict=True, et c'est essentiel. L'entrainement a conditionne le
+        # DC-AE charge par DCAE_HF ; ici le meme autoencodeur arrive enveloppe
+        # par diffusers. Si les etages decouverts different -- nombre ou
+        # largeurs -- un strict=False chargerait ce qui correspond et laisserait
+        # le reste a son initialisation NULLE : la modulation serait
+        # partiellement l'identite et la chaine rendrait des verdicts faux sans
+        # rien signaler.
+        try:
+            cond.load_state_dict(pref, strict=True)
+        except RuntimeError as e:
+            raise SystemExit(
+                f"les poids de la phase E ne correspondent pas au decodeur du "
+                f"pipeline.\nEtages ici : {canaux}\n{e}\n"
+                f"Le conditionnement a ete entraine sur l'autoencodeur charge "
+                f"par DCAE_HF ; diffusers expose peut-etre une structure "
+                f"differente. Charger quand meme donnerait des verdicts faux.")
+        cond = cond.to(dtype)
+        log(f"conditionneur charge : {len(pref)} tenseurs, etages {canaux}")
 
     resultats = []
     g = torch.Generator(device=DEVICE).manual_seed(args.seed)
