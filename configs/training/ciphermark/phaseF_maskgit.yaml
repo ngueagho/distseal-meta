@@ -35,7 +35,10 @@ run_dir: /workspace/runs/phaseF_maskgit
 
 imagenet:
     data_dir: /workspace/corpus-eval-12k
-    batch_size: 16
+    # 16 tenait a l'entrainement mais debordait pendant la validation, qui
+    # fait tourner en plus le reseau de reference, le watermarker enseignant
+    # et LPIPS. 12 reste trois fois le reglage d'origine.
+    batch_size: 12
     # 255 coeurs disponibles, et le defaut de 8 ouvriers laissait le GPU a
     # 0-33 % d'utilisation : l'entrainement etait bride par le chargement des
     # images, pas par le calcul.
@@ -66,7 +69,9 @@ train_dataset: imagenet
 
 max_steps: 40000
 num_batches: 10
-evaluate_steps: 500
+# La validation coute cher et laisse le GPU en attente : tous les 2000 pas
+# plutot que tous les 500 divise cette surcharge par quatre.
+evaluate_steps: 2000
 save_checkpoint_steps: 2000
 use_eval_mode_in_train: false
 clip_grad: 1
