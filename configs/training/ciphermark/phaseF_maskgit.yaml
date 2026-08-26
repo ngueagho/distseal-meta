@@ -35,7 +35,11 @@ run_dir: /workspace/runs/phaseF_maskgit
 
 imagenet:
     data_dir: /workspace/corpus-eval-12k
-    batch_size: 4
+    batch_size: 16
+    # 255 coeurs disponibles, et le defaut de 8 ouvriers laissait le GPU a
+    # 0-33 % d'utilisation : l'entrainement etait bride par le chargement des
+    # images, pas par le calcul.
+    n_worker: 32
 
 model: maskgit-vqgan
 
@@ -75,6 +79,6 @@ lr_scheduler:
     warmup_steps: 300
 optimizer:
     betas: [0.9, 0.999]
-    lr: 0.00002
+    lr: 0.00004
     name: adamw
-omega_lr: 0.0002
+omega_lr: 0.0004
