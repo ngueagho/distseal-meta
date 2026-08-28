@@ -53,6 +53,12 @@ class TrainerConfig(EvaluatorConfig):
     resume: bool = True
     resume_path: Optional[str] = None
     resume_schedule: bool = True
+    # CipherMark : reprendre les POIDS d'une phase sans reprendre l'etat de
+    # son optimiseur. Necessaire des que l'ensemble des parametres entrainables
+    # change d'une phase a l'autre -- typiquement en repartant d'une phase a
+    # decodeur degele pour une phase a decodeur gele : l'optimiseur n'a plus
+    # le meme nombre de groupes et load_state_dict leve une exception.
+    resume_optimizer: bool = True
     num_epochs: Optional[int] = None
     max_steps: Optional[int] = None
     clip_grad: Optional[float] = None
@@ -341,11 +347,16 @@ class Trainer(Evaluator):
 
         # load checkpoint
         self.network.load_state_dict(checkpoint["state_dict"], strict=False)
-        self.optimizer.load_state_dict(checkpoint[f"optimizer"])
-        self.print_and_f_log(f"optimizer loaded\n")
-        if self.enable_amp:
-            self.scaler.load_state_dict(checkpoint["scaler"])
-            self.print_and_f_log(f"scaler loaded\n")
+        if getattr(self.cfg, "resume_optimizer", True):
+            self.optimizer.load_state_dict(checkpoint[f"optimizer"])
+            self.print_and_f_log(f"optimizer loaded\n")
+            if self.enable_amp:
+                self.scaler.load_state_dict(checkpoint["scaler"])
+                self.print_and_f_log(f"scaler loaded\n")
+        else:
+            self.print_and_f_log(
+                "resume_optimizer=false : poids repris, etat de l'optimiseur "
+                "ignore (les parametres entrainables ont change de phase)\n")
         if self.cfg.resume_schedule:
             self.start_epoch = checkpoint["epoch"]
             self.print_and_f_log(f"epoch: {self.start_epoch}\n")

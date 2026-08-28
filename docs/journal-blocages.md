@@ -468,3 +468,73 @@ autoencodeur ImageNet qui ne se pilote pas.
   Déjà consigné, refait deux fois. Filtrer sur le binaire, pas sur le motif.
 - Un spécificateur de format fautif (`{x:.4f }`, espace parasite) n'aurait
   explosé qu'à l'impression finale, après des heures de calcul. Testé à part.
+
+## 2026-08-28 — La chaîne DistSeal rend un Ω au hasard : deux causes, pas une
+
+Premier essai de la chaîne complète (U-ViT génère le latent, le décodeur
+conditionné rend l'image, le vérifieur relit Ω) : **34 erreurs sur 64**, soit
+le hasard exact, sur les six classes. Aucun verdict rendu.
+
+Le piège était que tout *avait l'air* de fonctionner : le conditionneur se
+chargeait en `strict=True`, ses étages `[2048, 1024, 1024, 512, 512, 256]`
+correspondaient, et le PSNR entre le décodage avec et sans témoin tombait à
+23 dB — signe apparent d'un tatouage puissant. Le système modulait fort et
+n'inscrivait rien.
+
+### Cause 1 — le décodeur affiné n'était pas rechargé
+
+La phase D tourne avec `freeze_decoder: false`. Vérification faite après coup :
+**224 tenseurs de décodeur sur 224 diffèrent du DC-AE pré-entraîné**, tandis
+que les 162 tenseurs d'encodeur sont inchangés. Le décodeur a donc été appris
+*conjointement* au conditionneur — c'est lui qui traduit la modulation FiLM en
+motif lisible par l'extracteur.
+
+Mon script ne chargeait que les clés `omega_conditioner.*`. Le conditionneur
+pilotait un décodeur qui n'avait jamais appris à l'écouter.
+
+Ce qui m'a induit en erreur : `eval_phaseD_omega.py`, qui lui fonctionne, fait
+`model.load_state_dict(sd, strict=False)` sur le modèle **entier**. Le décodeur
+y était rechargé sans que ce soit dit nulle part. Un chargement large masquait
+une dépendance essentielle.
+
+*Correctif* : `charge_conditionneur()` recharge maintenant les clés
+`decoder.*`, compte les tenseurs effectivement modifiés, et s'arrête si aucun
+ne bouge ou si le checkpoint n'en porte aucun.
+
+### Cause 2 — la résolution
+
+Une fois la cause 1 corrigée, la mesure isole le reste :
+
+| résolution | latent | erreurs Ω | bit_acc |
+|---|---|---|---|
+| 256 px | (128, 4, 4) | 2/64 | 0,9688 |
+| 512 px | (128, 8, 8) | 35/64 | 0,4531 |
+
+La phase D est entraînée à 256 px ; les générateurs de
+`diffusion_model_zoo.py` sont **tous** en 512 px, sans variante 256. Aucune
+stratégie de lecture ne rattrape le 512 — natif, redimensionné, recadrage
+central, moyenne 2×2 : 39, 39, 33, 38 erreurs sur 64. Ce n'est pas la lecture
+qui échoue, c'est l'inscription.
+
+D'où la phase D-512 : repartir du checkpoint 256 px et porter le conditionneur
+à 512. La capacité y est plus favorable, non moins — le latent passe de
+2048 à 8192 valeurs, soit 128 valeurs par bit contre 32.
+
+### Leçon de méthode
+
+Mon premier test de résolution tournait sur le décodeur non rechargé : il
+donnait 27 erreurs à 256 px comme 35 à 512, et **innocentait la résolution à
+tort**. Tant qu'une cause connue reste active, aucune autre hypothèse ne peut
+être testée. Corriger d'abord ce qu'on sait faux, mesurer ensuite.
+
+### Deux effets de bord de l'étape 0
+
+- Le nettoyage du disque a supprimé `corpus_if` et `corpus-distill`, les
+  corpus d'**entraînement**, ainsi que `runs/phaseD_40k/` — la copie archivée
+  dans `/workspace/ckpt/` a été vérifiée saine par réévaluation (médiane 1,0).
+  Un corpus reconstruit doit rester disjoint de `corpus-eval-12k` : d'où
+  l'option `--coco-skip` de `build_corpus`, qui saute les 12000 premières
+  scènes de test2017, exactement celles de l'évaluation.
+- La section `gdrive_remote` de `rclone.conf` n'a **aucun jeton**. Le remote
+  qui fonctionne est `gdrive_local`. Mes commandes échouaient sur ce seul
+  détail pendant que le script de sauvegarde, lui, poussait sans problème.

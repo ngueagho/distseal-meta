@@ -1,0 +1,125 @@
+# ============================================================================
+# PHASE D-512 -- PORTER LE CONDITIONNEUR A LA RESOLUTION DE DISTSEAL
+#
+# POURQUOI CETTE PHASE EXISTE
+# ---------------------------
+# La chaine complete visee est celle de DistSeal, telle qu'il l'a produite :
+# le U-ViT genere un latent a partir d'une classe, le decodeur DC-AE le rend en
+# image, et notre conditionneur y inscrit un Omega VARIABLE au passage.
+#
+# Elle a echoue au premier essai, Omega ressortant a 34 erreurs sur 64 -- le
+# hasard exact. Le diagnostic a isole deux causes distinctes :
+#
+#   1. le decodeur affine n'etait pas recharge. La phase D tournait avec
+#      freeze_decoder: false ; ses 224 tenseurs de decodeur ont ete appris
+#      CONJOINTEMENT au conditionneur. Charger le conditionneur seul par-dessus
+#      le decodeur pre-entraine donne un systeme qui module sans rien inscrire.
+#      Corrige dans chaine_distseal_omega_variable.py.
+#
+#   2. la RESOLUTION. Une fois (1) corrige, la mesure devient sans appel :
+#
+#          resolution   latent          erreurs Omega   bit_acc
+#          256 px       (128, 4, 4)      2/64           0,9688
+#          512 px       (128, 8, 8)     35/64           0,4531
+#
+#      Aucune strategie d'extraction ne rattrape le 512 -- ni lecture native,
+#      ni redimensionnement, ni recadrage central, ni moyenne 2x2 (mesures :
+#      39, 39, 33, 38 erreurs sur 64). Ce n'est donc pas la lecture qui echoue,
+#      c'est l'inscription.
+#
+# Or TOUS les generateurs enregistres dans diffusion_model_zoo.py sont en
+# 512 px ; il n'existe pas de variante 256. La chaine de DistSeal impose sa
+# resolution, et c'est donc au conditionneur de s'y porter.
+#
+# CE QUI CHANGE, ET RIEN D'AUTRE
+# ------------------------------
+# resolution 256 -> 512, et le lot passe de 4 a 2 (quatre fois plus de pixels).
+# Le point de depart est le checkpoint de la phase D, deja bon a 256 px
+# (bit_acc moyenne 0,988 sur 5000 images) : on ne repart pas de zero.
+#
+# LE DECODEUR RESTE GELE
+# ----------------------
+# Deux raisons, l'une scientifique et l'autre materielle.
+#
+# La premiere : le decodeur sait DEJA traduire une modulation FiLM en motif
+# lisible par l'extracteur -- c'est ce que la phase D lui a appris. Ce qui ne
+# transpose pas en 512, c'est le reglage de gamma et beta pour une echelle
+# spatiale double. C'est exactement ce que le conditionneur regle.
+#
+# La seconde : un checkpoint decodeur degele pese 6,0 Go (2,7 de poids et 3,3
+# d'etat d'optimiseur) et le trainer en garde deux. Le volume du pod n'offre
+# que 11 Go, corpus compris. Gele, l'optimiseur ne porte plus que les 0,48 M
+# parametres du conditionneur et le checkpoint retombe a 2,7 Go.
+#
+# Si la bit_acc plafonne sous 0,9, c'est cette hypothese qui tombe et il
+# faudra degeler -- en liberant d'abord les 6 Go du checkpoint archive, qui est
+# sur le Drive.
+#
+# LE CORPUS
+# ---------
+# corpus-train512 est tire de test2017 en sautant les 12000 premieres scenes :
+# ce sont precisement celles de corpus-eval-12k. Les deux ensembles sont donc
+# disjoints, et la mesure d'evaluation reste honnete.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseD512_conditionneur.yaml
+# ============================================================================
+
+run_dir: /workspace/runs/phaseD512
+
+imagenet:
+    data_dir: /workspace/corpus-train512
+    batch_size: 2
+    n_worker: 16
+
+model: dc-ae-f64c128-in-1.0
+
+# --- on repart de la phase D, pas de zero ------------------------------------
+resume: true
+resume_path: /workspace/ckpt/phaseD_dcae_f64c128.pt
+resume_schedule: false          # les poids, oui ; le compteur de pas, non
+resume_optimizer: false         # le decodeur passe de degele a gele : groupes incompatibles
+
+# --- conditionnement : bornes identiques a la phase D ------------------------
+omega_nbits: 64
+freeze_decoder: true
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+# --- watermarker enseignant (identique) --------------------------------------
+# Le trainer redimensionne en 256 avant la detection (evaluator/trainer,
+# ligne 493) : l'extracteur voit donc la meme echelle qu'a l'entrainement de
+# la phase D, et l'inference fera le meme redimensionnement.
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes (identiques) -----------------------------------------------------
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 512
+train_dataset: imagenet
+
+max_steps: 12000
+num_batches: 10
+evaluate_steps: 250
+save_checkpoint_steps: 2000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 200
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002

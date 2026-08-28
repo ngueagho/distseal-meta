@@ -120,24 +120,38 @@ def add_bsds(out: str, size: int, max_scenes: int = 300) -> int:
     return total
 
 
-def add_coco(out: str, size: int, split: str, max_scenes: int) -> int:
+def add_coco(out: str, size: int, split: str, max_scenes: int,
+             tmp_dir: str | None = None, skip: int = 0) -> int:
     """
     Telecharge un split COCO (test2017: 40k, unlabeled2017: 123k) et en
     convertit max_scenes en 256x256 (recadrage carre central), format jpg.
     Une image par scene -- pas de multi-crops, on veut des scenes
     independantes pour les statistiques. Prevoir la place du zip
     (unlabeled2017 ~19 Go, uniquement raisonnable sur Colab).
+
+    tmp_dir place le zip ailleurs que dans le corpus : sur un pod loue, le
+    volume persistant est petit et le disque du conteneur large, or le zip est
+    justement le fichier qu'on peut se permettre de perdre.
+
+    skip saute les premieres scenes du zip. C'est ce qui garantit qu'un corpus
+    d'ENTRAINEMENT construit ici ne recoupe pas un corpus d'EVALUATION deja tire
+    du meme split : l'ordre de parcours du zip etant stable, sauter les n
+    premieres scenes suffit a rendre les deux ensembles disjoints.
     """
     import zipfile
 
-    tmp = os.path.join(out, f"_{split}.zip")
+    tmp = os.path.join(tmp_dir or out, f"_{split}.zip")
+    os.makedirs(os.path.dirname(tmp) or ".", exist_ok=True)
     if not os.path.exists(tmp):
         print(f"  telechargement {split}.zip ...")
         urllib.request.urlretrieve(COCO_URL.format(split), tmp)
-    total = 0
+    total, vues = 0, 0
     with zipfile.ZipFile(tmp) as zf:
         for info in zf.infolist():
             if not info.filename.endswith(".jpg"):
+                continue
+            vues += 1
+            if vues <= skip:
                 continue
             if total >= max_scenes:
                 break
@@ -172,6 +186,12 @@ def main() -> int:
                     default=None, help="ajouter un split COCO")
     ap.add_argument("--coco-max", type=int, default=50000,
                     help="nb max de scenes COCO")
+    ap.add_argument("--coco-skip", type=int, default=0,
+                    help="sauter les n premieres scenes du split -- sert a "
+                         "construire un corpus disjoint d'un corpus deja tire "
+                         "du meme split")
+    ap.add_argument("--tmp-dir", default=None,
+                    help="ou telecharger le zip (defaut : dans --out)")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -186,7 +206,8 @@ def main() -> int:
         print(f"bsds: {n} images")
         total += n
     if args.coco:
-        n = add_coco(args.out, args.size, args.coco, args.coco_max)
+        n = add_coco(args.out, args.size, args.coco, args.coco_max,
+                     tmp_dir=args.tmp_dir, skip=args.coco_skip)
         print(f"coco {args.coco}: {n} images")
         total += n
     print(f"total: {total} images dans {args.out}/")

@@ -66,14 +66,23 @@ NOMS_CLASSES = {
 def log(m): print(f"[distseal] {time.strftime('%H:%M:%S')} {m}", flush=True)
 
 
-def charge_conditionneur(decodeur, sonde_latente, nbits, chemin, gamma=0.3, beta=0.1):
-    """Attache le conditionneur au decodeur et y charge les poids appris.
+def charge_conditionneur(modele, decodeur, sonde_latente, nbits, chemin,
+                         gamma=0.3, beta=0.1):
+    """Restaure la phase D : le conditionneur ET le decodeur qu'elle a affine.
 
-    Le chargement est STRICT. Si les etages decouverts ici differaient de ceux
-    de l'entrainement, un chargement permissif laisserait une partie du
-    conditionneur a son initialisation nulle : la modulation deviendrait
-    l'identite sur ces etages, et le systeme rendrait des verdicts faux sans
-    que rien ne le signale.
+    Le chargement du conditionneur est STRICT. Si les etages decouverts ici
+    differaient de ceux de l'entrainement, un chargement permissif laisserait
+    une partie du conditionneur a son initialisation nulle : la modulation
+    deviendrait l'identite sur ces etages, et le systeme rendrait des verdicts
+    faux sans que rien ne le signale.
+
+    Le decodeur compte tout autant. La phase D tournait avec
+    freeze_decoder: false -- ses 224 tenseurs de decodeur ont ete affines
+    CONJOINTEMENT au conditionneur. Charger le conditionneur seul par-dessus le
+    decodeur pre-entraine donne un systeme qui module sans rien inscrire : le
+    PSNR entre le decodage avec et sans temoin chute a 25 dB, ce qui donne
+    toutes les apparences d'un tatouage fort, mais Omega ressort au hasard
+    (mesure : 34 erreurs sur 64). L'encodeur, lui, est reste gele.
     """
     with torch.no_grad():
         etages = decouvre_etages(decodeur, sonde_latente)
@@ -95,6 +104,25 @@ def charge_conditionneur(decodeur, sonde_latente, nbits, chemin, gamma=0.3, beta
                          f"Etages ici : {canaux}\n{e}")
     log(f"conditionneur charge : {len(pref)} tenseurs, "
         f"pas {ck.get('global_step', ck.get('epoch', '?'))}")
+
+    # --- le decodeur affine, sans quoi le conditionneur module dans le vide --
+    avant = {k: v.detach().clone() for k, v in modele.state_dict().items()
+             if k.startswith("decoder.")}
+    if not any(k.startswith("decoder.") for k in sd):
+        raise SystemExit(
+            f"{chemin} ne contient aucun poids de decodeur. La phase D affine "
+            f"le decodeur en meme temps que le conditionneur ; sans lui la "
+            f"modulation n'inscrit rien et Omega sort au hasard.")
+    modele.load_state_dict({k: v for k, v in sd.items()
+                            if k.startswith("decoder.")}, strict=False)
+    apres = modele.state_dict()
+    bouges = sum(1 for k, v in avant.items()
+                 if k in apres and not torch.equal(v, apres[k]))
+    log(f"decodeur affine restaure : {bouges}/{len(avant)} tenseurs modifies")
+    if bouges == 0:
+        raise SystemExit(
+            "aucun tenseur du decodeur n'a change au chargement : le "
+            "checkpoint ne porte pas le decodeur de la phase D.")
     return cond
 
 
@@ -156,7 +184,8 @@ def main() -> int:
         with torch.no_grad():
             sonde = ae.encoder(torch.zeros(1, 3, args.taille, args.taille,
                                            device=DEVICE))
-        cond = charge_conditionneur(ae.decoder, sonde, nbits, args.conditionneur)
+        cond = charge_conditionneur(ae, ae.decoder, sonde, nbits,
+                                    args.conditionneur)
 
         for cl in args.classes:
             nom = NOMS_CLASSES.get(cl, f"classe {cl}")
@@ -231,7 +260,8 @@ def main() -> int:
         with torch.no_grad():
             lat, _ = ae.encode_pre_quant(torch.zeros(1, 3, 256, 256, device=DEVICE))
             lat = ae.quantize(lat)
-        cond = charge_conditionneur(ae.decoder, lat, nbits, args.conditionneur)
+        cond = charge_conditionneur(ae, ae.decoder, lat, nbits,
+                                    args.conditionneur)
 
         for i, f in enumerate(fichiers):
             im = Image.open(f).convert("RGB").resize((256, 256))
