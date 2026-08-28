@@ -1,0 +1,104 @@
+# ============================================================================
+# ETAPE 3a -- EMBEDDER/EXTRACTEUR DANS L'ESPACE LATENT, RECETTE DE DISTSEAL
+#
+# CE QU'ELLE FERME DE L'OBJECTIF
+# ------------------------------
+# Premier volet : « un couple embedder/extracteur, espace latent ET espace
+# pixel ». Le pixel est acquis (phase H : 37,85 dB a bit_acc 0,9991). Le latent
+# manquait -- et non pour une raison contingente : notre embedder pixel tatoue
+# la LUMINANCE, il n'a qu'un canal d'entree, et refuse un tenseur a 128 canaux
+# (`expected input[1, 128, 4, 4] to have 1 channels`). Il faut un couple
+# entraine POUR le latent.
+#
+# CE FICHIER EST CELUI DE DISTSEAL, A TROIS ECARTS PRES
+# ----------------------------------------------------
+# Copie de configs/training/autoregressive/posthoc_latent_after_quant.yaml.
+# Ses reglages sont conserves tels quels -- embedder_model unet_bottleneck,
+# autoencoder MaskgitVqgan, latent_layer input_after_quantize, scaling_w 2.0,
+# nbits 64, lambda_dec 1.0, lambda_i 0.0, perceptual_loss mse, discriminateur
+# maskbit. C'est la consigne : reprendre son protocole tel qu'il l'a produit.
+#
+# Ecart 1 -- iter_per_epoch : 1000 -> 200.
+#   601 epoques a 1000 iterations font 601 000 pas, hors budget. La STRUCTURE
+#   TEMPORELLE est ce qui compte dans sa recette et elle est indexee sur les
+#   epoques : discriminateur a l'epoque 200, rampe de scaling_w a partir de
+#   l'epoque 100, cosinus de LR sur t_initial=601. Reduire les echantillons par
+#   epoque preserve ce deroule relatif ; reduire le nombre d'epoques le
+#   detruirait. Les runs qui ont abouti ici (phase B, posthoc_pixel_final)
+#   utilisaient deja 200.
+#
+# Ecart 2 -- batch_size : 16 -> 8.
+#   Ce run partage le GPU avec la phase F, qui occupe 12,8 Go des 24,5. Un lot
+#   de 16 risquerait de faire tomber la phase F en OOM pendant sa validation,
+#   alors qu'elle a une heure et demie d'avance. Ecart assume et a signaler
+#   dans le memoire : le lot effectif n'est pas celui de DistSeal.
+#
+# Ecart 3 -- le corpus.
+#   corpus-train512, disjoint de corpus-eval-12k par construction (test2017 en
+#   sautant les 12000 premieres scenes). Les images y sont en 512 px,
+#   redimensionnees en 256 au chargement.
+#
+# UN POINT DE VIGILANCE
+# ---------------------
+# lambda_i: 0.0 et attenuation: null sont les reglages de DistSeal, mais ce
+# sont exactement ceux qui avaient rendu le tatouage VISIBLE en espace pixel.
+# En latent la contrainte perceptuelle passe par la reconstruction de
+# l'autoencodeur, pas par une perte image, donc le raisonnement ne transpose
+# pas mecaniquement -- mais il faut regarder les images de validation avant de
+# conclure quoi que ce soit sur la fidelite.
+#
+# Lancement :
+#   PYTHONPATH=deps:. torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/etape3_latent_autoreg.yaml
+# ============================================================================
+
+output_dir: /workspace/runs/etape3_latent_autoreg
+
+dataset:
+    train_dir: /workspace/corpus-train512/train/toutes
+    val_dir: /workspace/corpus-train512/val/toutes
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+embedder_model: unet_bottleneck
+autoencoder: MaskgitVqgan
+latent_layer: input_after_quantize
+scaling_w: 2.0
+scaling_w_schedule: Cosine,scaling_min=0.5,start_epoch=100,epochs=100
+seed: 0
+batch_size_eval: 4
+batch_size: 8
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+attenuation: null
+ae_quantize: true
+scaling_i: 1.0
+videowam_step_size: 8
+num_augs: 2
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.1
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 200
+epochs: 601
+iter_per_epoch: 200
+eval_freq: 10
+saveimg_freq: 50
+iter_per_valid: 10
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=601,warmup_lr_init=1e-8,warmup_t=20
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 50
+finetune_detector_start: 2000
+workers: 6
