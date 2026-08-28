@@ -50,10 +50,25 @@ HASH_BITS = 256
 def log(m): print(f"[chaine] {time.strftime('%H:%M:%S')} {m}", flush=True)
 
 
-def charge_sana(modele: str):
+def charge_generateur(famille: str, modele: str, dtype):
+    """Charge le pipeline texte vers image de la famille demandee.
+
+    Les deux familles partagent la meme structure : un transformeur produit un
+    latent, un decodeur le rend en image. CipherMark conditionne ce decodeur,
+    ce qui rend la methode independante de la façon dont le latent a ete
+    obtenu -- par debruitage iteratif chez SANA, par demasquage iteratif de
+    jetons chez aMUSEd.
+    """
+    if famille == "autoregressif":
+        from diffusers import AmusedPipeline
+        log(f"chargement de {modele} (autoregressif, famille MaskGIT)")
+        pipe = AmusedPipeline.from_pretrained(modele, variant="fp16", torch_dtype=dtype)
+        pipe = pipe.to(DEVICE)
+        pipe.set_progress_bar_config(disable=True)
+        return pipe
     from diffusers import SanaPipeline
-    log(f"chargement de {modele}")
-    pipe = SanaPipeline.from_pretrained(modele, torch_dtype=torch.bfloat16)
+    log(f"chargement de {modele} (diffusion latente)")
+    pipe = SanaPipeline.from_pretrained(modele, torch_dtype=dtype)
     # L'encodeur de texte de SANA est un Gemma de 2 milliards de parametres :
     # environ 5 Go en bf16, auxquels s'ajoutent le transformeur et le VAE. Le
     # GPU partage la carte avec le reste de la campagne, donc on decharge vers
@@ -80,7 +95,15 @@ def main() -> int:
     ap.add_argument("--mode", choices=("posthoc", "inmodel"), default="posthoc")
     ap.add_argument("--phaseE-checkpoint", default=None,
                     help="checkpoint du decodeur conditionne (mode inmodel)")
+    ap.add_argument("--famille", choices=("diffusion", "autoregressif"),
+                    default="diffusion",
+                    help="diffusion = SANA (transformeur de diffusion latente) ; "
+                         "autoregressif = aMUSEd (transformeur generatif masque, "
+                         "famille MaskGIT, conditionne par texte). Les deux "
+                         "produisent un latent puis le decodent : c'est ce "
+                         "decodeur que CipherMark conditionne.")
     ap.add_argument("--sana", default="Efficient-Large-Model/Sana_600M_512px_diffusers")
+    ap.add_argument("--amused", default="amused/amused-256")
     ap.add_argument("--steps", type=int, default=20)
     ap.add_argument("--guidance", type=float, default=4.5)
     ap.add_argument("--taille", type=int, default=512)
@@ -133,17 +156,23 @@ def main() -> int:
                 "de l'entrainement de la phase E.")
 
     # ------------------------------------------------------- generation -----
-    pipe = charge_sana(args.sana)
+    # bfloat16 exige une carte Ampere ; ailleurs on retombe sur float16.
+    dtype = (torch.bfloat16 if torch.cuda.is_available()
+             and torch.cuda.get_device_capability(0)[0] >= 8 else torch.float16)
+    modele = args.amused if args.famille == "autoregressif" else args.sana
+    pipe = charge_generateur(args.famille, modele, dtype)
     if args.mode == "inmodel":
         from distseal.ciphermark.conditioner import OmegaConditioner, decouvre_etages
-        decodeur = pipe.vae.decoder if hasattr(pipe.vae, "decoder") else pipe.vae
+        # SANA expose son autoencodeur sous .vae, aMUSEd sous .vqvae.
+        ae = getattr(pipe, "vae", None) or getattr(pipe, "vqvae")
+        decodeur = ae.decoder if hasattr(ae, "decoder") else ae
         # Le pipeline est charge en bfloat16 : une sonde en float32 ferait
         # echouer la premiere convolution du VAE.
-        dtype = next(pipe.vae.parameters()).dtype
+        dtype = next(ae.parameters()).dtype
         with torch.no_grad():
             sonde = torch.zeros(1, 3, args.taille, args.taille,
                                 device=DEVICE, dtype=dtype)
-            etages = decouvre_etages(decodeur, pipe.vae.encoder(sonde))
+            etages = decouvre_etages(decodeur, ae.encoder(sonde))
         canaux = [c for _, _, c in etages]
         log(f"etages decouverts dans le VAE du pipeline : {canaux}")
 
@@ -183,10 +212,18 @@ def main() -> int:
         log(f"[{i+1}/{len(args.prompt)}] generation : \"{phrase}\"")
         t0 = time.time()
         with torch.no_grad():
-            img = pipe(prompt=phrase, num_inference_steps=args.steps,
-                       guidance_scale=args.guidance, generator=g,
-                       height=args.taille, width=args.taille,
-                       output_type="pt").images
+            # aMUSEd travaille en 256 px et n'accepte pas les memes arguments
+            # que SANA : on adapte l'appel plutot que de supposer une interface
+            # commune qui n'existe pas.
+            if args.famille == "autoregressif":
+                img = pipe(prompt=phrase, num_inference_steps=max(8, args.steps),
+                           guidance_scale=args.guidance, generator=g,
+                           height=256, width=256, output_type="pt").images
+            else:
+                img = pipe(prompt=phrase, num_inference_steps=args.steps,
+                           guidance_scale=args.guidance, generator=g,
+                           height=args.taille, width=args.taille,
+                           output_type="pt").images
         img = img.float().clamp(0, 1).to(DEVICE)
         t_gen = time.time() - t0
 
