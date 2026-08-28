@@ -66,6 +66,18 @@ NOMS_CLASSES = {
 def log(m): print(f"[distseal] {time.strftime('%H:%M:%S')} {m}", flush=True)
 
 
+def omega_hex(bits) -> str:
+    """Serialise un Omega binaire en hexadecimal, bit de poids fort en tete.
+
+    Enregistrer le temoin est ce qui permet a une mesure faite plus tard --
+    robustesse, transplantation, contre-expertise -- de comparer a Omega
+    LUI-MEME plutot qu'a la relecture de l'image intacte. Sans lui, ces
+    mesures ne portent que sur une degradation relative.
+    """
+    v = "".join(str(int(b)) for b in bits.tolist())
+    return f"{int(v, 2):0{(len(v) + 3) // 4}x}"
+
+
 def charge_conditionneur(modele, decodeur, sonde_latente, nbits, chemin,
                          gamma=0.3, beta=0.1):
     """Restaure la phase D : le conditionneur ET le decodeur qu'elle a affine.
@@ -218,7 +230,12 @@ def main() -> int:
             base = os.path.join(args.out_dir, f"classe_{cl:03d}_{nom.replace(' ', '_')}")
             save_image(img_nu, base + "_sans_omega.png")
             save_image(img_w, base + "_avec_omega.png")
+            # Omega est enregistre en hexadecimal. Sans lui, toute mesure
+            # ulterieure sur ces images doit prendre l'extraction propre pour
+            # reference, et ne mesure donc qu'une degradation RELATIVE : on ne
+            # peut plus verifier la distance au temoin reellement tire.
             ligne = {"famille": "diffusion", "classe": cl, "nom": nom,
+                     "omega_hex": omega_hex(omega[0]),
                      "erreurs_omega": err, "nbits": nbits, "p_valeur": pv,
                      "psnr_vs_sans_omega": psnr, "secondes": round(t_gen, 1)}
             if args.attaques:
@@ -287,6 +304,7 @@ def main() -> int:
             save_image(img_nu, base + "_sans_omega.png")
             save_image(img_w, base + "_avec_omega.png")
             resultats.append({"famille": "autoregressif", "source": os.path.basename(f),
+                              "omega_hex": omega_hex(omega[0]),
                               "erreurs_omega": err, "nbits": nbits,
                               "p_valeur": binomial_pvalue(err, nbits),
                               "psnr_vs_sans_omega": psnr,
