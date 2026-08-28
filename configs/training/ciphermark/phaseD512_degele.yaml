@@ -1,0 +1,116 @@
+# ============================================================================
+# PHASE D-512 DEGELEE -- LE DECODEUR REAPPREND A INSCRIRE OMEGA A 512 PX
+#
+# CE QUE LA VARIANTE GELEE A ETABLI
+# ---------------------------------
+# phaseD512_conditionneur.yaml posait une question nette : le conditionneur
+# seul, gamma et beta par canal, suffit-il a porter Omega d'une echelle
+# spatiale a l'autre ? La reponse est non.
+#
+#     pas        0    250    500    750   1000   1250   1500   1750   2000
+#     bit_acc  0,464 0,511  0,530  0,545  0,579  0,595  0,596  0,610  0,600
+#     pas     2250   2500   2750   ...    5000   5250   5500
+#     bit_acc 0,598  0,617  0,622   ...   0,646  0,649  0,649
+#
+# La montee est reelle mais s'affaisse : +0,03 sur les 2500 derniers pas, en
+# decelerant. Extrapoler donne un plateau vers 0,65-0,70, tres loin des 0,988
+# que la phase D atteint a 256 px. L'hypothese est refutee.
+#
+# POURQUOI ELLE DEVAIT L'ETRE
+# ---------------------------
+# Deux mesures expliquent l'echec, et aucune ne met en cause la reconstruction.
+#
+# D'abord le decodeur gele n'est PAS hors de son regime a 512 px -- il y
+# reconstruit mieux qu'a 256 :
+#
+#     decodeur                256 px    512 px
+#     DC-AE pre-entraine      24,68     27,11      <- modele nativement 512 px
+#     phase D (affine 256)    21,32     22,36
+#
+# Ensuite, et c'est la contrainte structurelle : a 512 px le trainer
+# redimensionne en 256 avant la detection (trainer.py, ligne 493). Ce facteur 2
+# moyenne les blocs 2x2 et attenue precisement les hautes frequences ou vit le
+# tatouage. A 256 px ce sous-echantillonnage n'existait pas. Des gains par
+# canal ne peuvent pas contourner cela : il faut que le decodeur REAPPRENNE ou
+# placer le motif, a des frequences qui survivent a la reduction. C'est un
+# travail de filtres spatiaux, pas de gains scalaires.
+#
+# LE POINT DE DEPART
+# ------------------
+# Non pas l'archive de la phase D, mais le checkpoint du run gele : il porte le
+# meme decodeur (il etait gele, donc inchange) ET un conditionneur deja adapte
+# a 512 px, a 0,649 au lieu de 0,5. On ne jette pas les 5500 pas.
+#
+# resume_optimizer reste faux : la source n'a qu'un groupe de parametres, le
+# conditionneur ; degeler le decodeur en cree un second.
+#
+# COUT ET GARDE-FOU
+# -----------------
+# Un checkpoint degele pese 6,0 Go (2,7 de poids, 3,3 d'etat d'optimiseur) et
+# le trainer en garde deux. L'archive de la phase D a ete liberee pour cela,
+# apres verification sur le Drive a l'octet pres et reevaluation complete
+# (mediane 1,0). 17 Go libres pour 12 Go necessaires.
+#
+# En memoire GPU, degeler ajoute gradients et moments d'Adam sur 680 M
+# parametres, soit environ 8 Go au-dessus des 12 Go du run gele. Si cela
+# depasse les 24 Go de la carte, passer le lot de 2 a 1.
+#
+# Lancement :
+#   PYTHONPATH=deps:. WANDB_MODE=offline python3 distill.py \
+#       config=configs/training/ciphermark/phaseD512_degele.yaml
+# ============================================================================
+
+run_dir: /workspace/runs/phaseD512_degele
+
+imagenet:
+    data_dir: /workspace/corpus-train512
+    batch_size: 2
+    n_worker: 16
+
+model: dc-ae-f64c128-in-1.0
+
+# --- on repart du run gele, pas de l'archive 256 px --------------------------
+resume: true
+resume_path: /workspace/ckpt/phaseD512_conditionneur_512.pt
+resume_schedule: false
+resume_optimizer: false
+
+# --- le changement, et le seul ----------------------------------------------
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+# --- watermarker enseignant (identique a la phase D) -------------------------
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes (identiques a la phase D) ----------------------------------------
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 512
+train_dataset: imagenet
+
+max_steps: 20000
+num_batches: 10
+evaluate_steps: 250
+save_checkpoint_steps: 2000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 200
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002

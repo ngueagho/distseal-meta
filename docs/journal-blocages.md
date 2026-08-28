@@ -538,3 +538,45 @@ tort**. Tant qu'une cause connue reste active, aucune autre hypothèse ne peut
 - La section `gdrive_remote` de `rclone.conf` n'a **aucun jeton**. Le remote
   qui fonctionne est `gdrive_local`. Mes commandes échouaient sur ce seul
   détail pendant que le script de sauvegarde, lui, poussait sans problème.
+
+## 2026-08-28 — La phase F s'entraînait sur le corpus d'évaluation
+
+Découvert en préparant l'étape 2, avant de la lancer.
+
+`phaseF_maskgit.yaml` pointe `data_dir` sur `/workspace/corpus-eval-12k`. Le
+journal de la phase F le confirme sans ambiguïté : « Train Epoch #29 : 1002 it »
+à un lot de 12, soit **12 024 images — exactement les 12 025 du corpus
+d'évaluation**.
+
+La phase F s'est donc entraînée sur les images qui servent à la juger. Sa
+bit_acc de 0,6462 n'est pas fausse : elle ne mesure simplement pas ce qu'on
+croyait. C'est une performance sur données vues, muette sur la généralisation.
+
+### Ce qui rend l'erreur facile à commettre
+
+Le nom `corpus-eval-12k` dit pourtant sa fonction. Mais un `data_dir` se règle
+une fois, en tête de config, et ne se relit plus ; et l'entraînement ne se
+plaint de rien, puisque des images sont bien là. Rien dans la boucle ne
+signale qu'on apprend sur son propre jeu de test.
+
+Corollaire de méthode : un corpus d'évaluation devrait être en lecture seule,
+et aucun `data_dir` d'entraînement ne devrait pouvoir le désigner.
+
+### Réparation, et ce qu'elle ne répare pas
+
+`phaseF_reprise_corpus_disjoint.yaml` reprend au pas 28000 sur
+`corpus-train512`, disjoint par construction (test2017 en sautant les 12000
+premières scènes). `phaseF_maskgit.yaml` est laissé intact : il documente ce
+qui a réellement tourné.
+
+Mais les 28000 premiers pas restent entraînés sur le corpus d'évaluation. Le
+modèle a vu ces images. **La mesure de référence du mémoire doit être faite sur
+un corpus jamais vu**, quoi qu'il arrive — et si l'on veut une phase F
+pleinement propre, il faut la reprendre de zéro, soit une dizaine d'heures.
+Arbitrage à faire.
+
+### Au passage
+
+`corpus-eval-12k` n'a plus que `toutes/`, sans `train/` ni `val/` :
+`ImageFolder` cherche `data_dir/train` et la reprise aurait planté au
+démarrage, comme la phase D-512 ce matin. Deuxième effet de bord de l'étape 0.

@@ -1,0 +1,98 @@
+# ============================================================================
+# PHASE F -- REPRISE SUR CORPUS DISJOINT
+#
+# POURQUOI CE FICHIER PLUTOT QU'UNE MODIFICATION DE phaseF_maskgit.yaml
+# --------------------------------------------------------------------
+# phaseF_maskgit.yaml reste tel quel : il documente ce qui a REELLEMENT tourne
+# jusqu'au pas 28000. Le corriger effacerait la trace du defaut qu'on repare.
+#
+# LE DEFAUT
+# ---------
+# phaseF_maskgit.yaml pointe data_dir sur /workspace/corpus-eval-12k, c'est-a-
+# dire le CORPUS D'EVALUATION. Le journal le confirme sans ambiguite : « Train
+# Epoch #29 : 1002 it » a un lot de 12, soit 12 024 images -- exactement les
+# 12 025 du corpus d'evaluation.
+#
+# La phase F s'est donc entrainee sur les images qui servent a la juger. Sa
+# bit_acc de 0,6462 mesure une performance sur donnees vues, et ne dit rien de
+# sa generalisation. Le chiffre n'est pas faux, il ne mesure pas ce qu'on
+# croyait qu'il mesurait.
+#
+# LA REPARATION, ET CE QU'ELLE NE REPARE PAS
+# ------------------------------------------
+# La reprise se fait sur corpus-train512, tire de test2017 en sautant les 12000
+# premieres scenes -- celles du corpus d'evaluation. Les deux ensembles sont
+# donc disjoints par construction.
+#
+# Ce que cela ne repare pas : les 28000 premiers pas restent entraines sur le
+# corpus d'evaluation. Toute mesure faite APRES cette reprise sera honnete pour
+# les pas qui suivent, mais le modele a deja vu ces images. Pour une mesure
+# pleinement propre il faudrait reprendre la phase F de zero, ce qui coute une
+# dizaine d'heures. A arbitrer : la mesure de reference du memoire doit dans
+# tous les cas etre faite sur un corpus que le modele n'a jamais vu.
+#
+# AUTRE CORRECTION
+# ----------------
+# corpus-eval-12k n'a plus que toutes/, sans train/ ni val/ : ImageFolder
+# cherche data_dir/train et echouerait au demarrage. corpus-train512 porte la
+# bonne arborescence (train/toutes et val/toutes).
+#
+# Les images y sont en 512 px ; resolution: 256 les redimensionne au
+# chargement, comme le faisait deja le corpus d'origine.
+#
+# LA REPRISE
+# ----------
+# run_dir est inchange : le trainer y trouve checkpoint.pt et repart du pas
+# 28000, avec son optimiseur et son ordonnanceur. resume_optimizer reste vrai,
+# les parametres entrainables n'ayant pas change.
+#
+# Lancement :
+#   PYTHONPATH=deps:. WANDB_MODE=offline python3 distill.py \
+#       config=configs/training/ciphermark/phaseF_reprise_corpus_disjoint.yaml
+# ============================================================================
+
+run_dir: /workspace/runs/phaseF_maskgit
+
+imagenet:
+    data_dir: /workspace/corpus-train512
+    batch_size: 12
+    n_worker: 16
+
+model: maskgit-vqgan
+
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+max_steps: 60000
+num_batches: 10
+evaluate_steps: 2000
+save_checkpoint_steps: 2000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 300
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002
