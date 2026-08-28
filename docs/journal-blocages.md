@@ -627,3 +627,39 @@ phase et porte les deux groupes. Les laisser à `false` aurait remis le compteur
 
 Reprise vérifiée : `global_step=6000`, optimiseur rechargé, première validation
 à 0,9297 contre 0,9273 avant la coupure. Rien de perdu.
+
+## 2026-08-28 — Étape 1 close : la chaîne DistSeal rend 6/6 verdicts
+
+Clôture de l'entrée « la chaîne DistSeal rendait un Ω au hasard ».
+
+Après la phase D-512 dégelée (20 000 pas, meilleures validations 0,989 /
+0,984 / 0,983), le même test qu'au matin :
+
+| sujet | Ω | p-valeur | PSNR témoin |
+|---|---|---|---|
+| classe 207 | 0/64 | 5,4e-20 | 26,60 dB |
+| renard arctique | 0/64 | 5,4e-20 | 27,09 dB |
+| panda géant | 0/64 | 5,4e-20 | 25,53 dB |
+| montgolfière | 3/64 | 2,4e-15 | 24,12 dB |
+| cheeseburger | 0/64 | 5,4e-20 | 24,21 dB |
+| volcan | 3/64 | 2,4e-15 | 25,00 dB |
+
+**0/6 verdicts le matin, 6/6 le soir**, sur la même commande et les mêmes six
+classes. Ce qui séparait les deux : le décodeur affiné n'était pas rechargé
+(cause 1), et le conditionneur n'avait jamais vu le 512 px qu'impose le
+générateur de DistSeal (cause 2).
+
+### Ce que le gel a coûté et appris
+
+L'hypothèse « conditionneur seul » a consommé 5500 pas pour plafonner à 0,649.
+Elle n'était pas gratuite : elle a produit le point de départ du run dégelé —
+même décodeur, conditionneur déjà adapté à 512 — et surtout elle a établi que
+des gains par canal ne peuvent pas compenser un changement d'échelle spatiale
+quand le sous-échantillonnage 512→256 précède la détection. C'est un résultat
+négatif utilisable dans le mémoire, pas du temps perdu.
+
+### Reste à faire
+
+Six images ne prouvent rien : validation à grande échelle lancée sur 300
+classes tirées régulièrement (0, 3, 6, … 897) pour ne pas sélectionner des
+sujets favorables.
