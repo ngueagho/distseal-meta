@@ -1,0 +1,99 @@
+# ============================================================================
+# ETAPE 3a, PHASE 0 -- SORTIR DU POINT STATIONNAIRE TRIVIAL
+#
+# CE QUI S'EST PASSE
+# ------------------
+# Lance avec la recette complete de DistSeal, le run est reste colle a ln 2
+# pendant huit epoques, learning rate a pleine valeur :
+#
+#     epoque        23     24     25     26     27     28     29     30
+#     loss_decode  0,6952 0,6927 0,6927 0,6921 0,6928 0,6942 0,6945 0,6927
+#     ln 2 = 0,693147                       bit_acc : 0,492 a 0,502
+#
+# C'est le point stationnaire trivial deja rencontre sur ce projet :
+# l'extracteur sort des logits nuls, sigma(0) = 0,5, et le gradient moyen vaut
+# 0,5 - E[y] = 0 des lors que les messages sont equilibres. Rien ne pousse le
+# modele a en sortir ; il y reste indefiniment.
+#
+# POURQUOI DISTSEAL N'Y TOMBE PAS ET NOUS SI
+# ------------------------------------------
+# Sa recette met les augmentations completes (all_augs_v3, num_augs: 2) et le
+# discriminateur des le depart. La tache est alors trop dure d'emblee pour que
+# la symetrie se brise -- a notre taille de lot. Lui dispose d'un lot bien plus
+# grand, dont le gradient moyen est assez peu bruite pour amorcer.
+#
+# LE CURRICULUM, DEJA EPROUVE ICI
+# -------------------------------
+# Toutes les phases qui ont appris sur ce projet -- phaseA1_floor,
+# phaseA1_overfit_clean, curriculum_phase1, local_phase0 -- partagent le meme
+# depart : identity_only.yaml, lambda_d a 0, discriminateur repousse a
+# l'infini. On apprend d'abord la correspondance propre, on durcit ensuite.
+#
+# Cette phase 0 ne fait donc QU'UNE chose : retirer la difficulte du depart.
+# Tout le reste est celui de DistSeal -- unet_bottleneck, MaskgitVqgan,
+# input_after_quantize, scaling_w 2.0, nbits 64, lambda_i 0.0.
+#
+# CRITERE D'ARRET
+# ---------------
+# loss_decode doit DECOLLER de 0,6931. S'il y reste encore apres 5000
+# iterations, ce n'est pas le curriculum qui est en cause et il faudra
+# chercher ailleurs -- amorcage de l'extracteur, ou scaling_w.
+#
+# La suite, phase 1, restaurera all_augs_v3, lambda_d 0.1 et le discriminateur,
+# en repartant de ce checkpoint.
+#
+# Lancement :
+#   PYTHONPATH=deps:. torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/etape3_latent_phase0.yaml
+# ============================================================================
+
+output_dir: /workspace/runs/etape3_latent_phase0
+
+dataset:
+    train_dir: /workspace/corpus-train512/train/toutes
+    val_dir: /workspace/corpus-train512/val/toutes
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+embedder_model: unet_bottleneck
+autoencoder: MaskgitVqgan
+latent_layer: input_after_quantize
+scaling_w: 2.0
+scaling_w_schedule: Constant,scaling_min=2.0,epochs=200
+seed: 0
+batch_size_eval: 4
+batch_size: 8
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+attenuation: null
+ae_quantize: true
+scaling_i: 1.0
+videowam_step_size: 8
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+epochs: 200
+iter_per_epoch: 200
+eval_freq: 10
+saveimg_freq: 50
+iter_per_valid: 10
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 50
+finetune_detector_start: 2000
+workers: 6

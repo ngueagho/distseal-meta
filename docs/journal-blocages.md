@@ -663,3 +663,42 @@ négatif utilisable dans le mémoire, pas du temps perdu.
 Six images ne prouvent rien : validation à grande échelle lancée sur 300
 classes tirées régulièrement (0, 3, 6, … 897) pour ne pas sélectionner des
 sujets favorables.
+
+## 2026-08-28 — L'étape 3a tombe au point stationnaire trivial
+
+Lancé avec la recette complète de DistSeal, l'embedder latent est resté collé à
+`ln 2` pendant huit époques, learning rate à pleine valeur :
+
+| époque | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 |
+|---|---|---|---|---|---|---|---|---|
+| loss_decode | 0,6952 | 0,6927 | 0,6927 | 0,6921 | 0,6928 | 0,6942 | 0,6945 | 0,6927 |
+
+`ln 2 = 0,693147`, bit_acc entre 0,492 et 0,502. C'est le point stationnaire
+trivial déjà rencontré : l'extracteur sort des logits nuls, σ(0) = 0,5, et le
+gradient moyen vaut 0,5 − E[y] = 0 dès que les messages sont équilibrés. Rien
+ne pousse le modèle à en sortir.
+
+### Pourquoi DistSeal n'y tombe pas et nous si
+
+Sa recette met `all_augs_v3` avec `num_augs: 2` et le discriminateur dès
+l'époque 0. La tâche est trop dure d'emblée pour que la symétrie se brise — à
+notre taille de lot. Lui dispose d'un lot bien plus grand, dont le gradient
+moyen est assez peu bruité pour amorcer.
+
+### Ce qui aurait dû m'alerter plus tôt
+
+Toutes les phases qui ont appris sur ce projet — `phaseA1_floor`,
+`phaseA1_overfit_clean`, `curriculum_phase1`, `local_phase0` — partagent le
+même départ : `identity_only.yaml`, `lambda_d: 0.0`, `disc_start: 999999`. Le
+curriculum était déjà établi ici, écrit dans quatre configs, et j'ai lancé
+l'étape 3 sans le reprendre. « Reprendre le protocole de DistSeal tel quel »
+vaut pour ses hyperparamètres, pas pour ignorer une contrainte d'amorçage que
+nos propres runs avaient déjà documentée.
+
+### Critère de décision, fixé d'avance
+
+`etape3_latent_phase0.yaml` ne change qu'une chose : retirer la difficulté du
+départ. Le signal à surveiller n'est pas la bit_acc mais `loss_decode`, qui
+doit quitter 0,6931. Si elle y reste après 5000 itérations, le curriculum
+n'est pas en cause et il faudra chercher ailleurs — amorçage de l'extracteur,
+ou `scaling_w`. Le moniteur alerte dans les deux sens.
