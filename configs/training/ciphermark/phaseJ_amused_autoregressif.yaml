@@ -1,0 +1,94 @@
+# ============================================================================
+# PHASE J -- LA BRANCHE AUTOREGRESSIVE, AVEC UN MODELE QUI GENERE VRAIMENT
+#
+# CE QU'ELLE DEBLOQUE
+# -------------------
+# La chaine visee est : un prompt, le modele produit le latent, son decodeur
+# conditionne rend l'image DEJA tatouee, le verifieur retrouve Omega. Elle
+# fonctionne sur la voie diffusion depuis la phase E, avec SANA.
+#
+# Sur la voie autoregressive elle butait sur un fait simple :
+# distseal/augmentation/maskgit_utils.py ne contient qu'Encoder, Decoder et
+# VectorQuantizer. C'est un TOKENISEUR -- il encode et decode, il ne genere
+# rien. La phase F conditionne bien son decodeur, mais aucun prompt ne peut
+# l'alimenter.
+#
+# aMUSEd leve l'obstacle : transformeur generatif masque, donc de la famille
+# MaskGIT, mais CONDITIONNE PAR TEXTE et livre avec son tokeniseur VQ.
+#
+# CE QUE LA MESURE DIT DE SA CAPACITE
+# -----------------------------------
+# Releve du 2026-08-28 sur amused-256, a 256 px :
+#
+#   modele                     latent          valeurs   val/bit   etages
+#   SANA (phase E, diffusion)  8x8   x 32        2 048       32       6
+#   aMUSEd (phase J, autoreg.) 16x16 x 64       16 384      256       5
+#   MaskGIT-VQGAN (phase F)    16x16 x 256      65 536     1024       3
+#
+# aMUSEd offre cinq etages modulables la ou MaskGIT-VQGAN n'en donnait que
+# trois, dont un etait la sortie RVB -- ou moduler revient a teinter l'image.
+# La phase F plafonnait a 0,6462 avec 0,48 M de parametres de conditionnement ;
+# on en attend nettement plus ici.
+#
+# DISCIPLINE
+# ----------
+# Un seul facteur change par rapport a la phase E : le modele. Bornes,
+# learning rates, poids de pertes, watermarker enseignant, taille de lot,
+# corpus : identiques. Les etages sont decouverts par passe a blanc, jamais
+# codes en dur.
+#
+# Lancement :
+#   PYTHONPATH=deps:. python3 distill.py \
+#       config=configs/training/ciphermark/phaseJ_amused_autoregressif.yaml
+# ============================================================================
+
+run_dir: /workspace/runs/phaseJ_amused
+
+imagenet:
+    data_dir: /workspace/corpus-distill
+    batch_size: 8
+    n_worker: 24
+
+model: amused-vqvae
+
+# --- conditionnement (identique aux phases D et E) --------------------------
+omega_nbits: 64
+freeze_decoder: false
+omega_gamma_max: 0.3
+omega_beta_max: 0.1
+
+# --- watermarker enseignant (identique) -------------------------------------
+# Post-hoc en pixels : notre embedder tatoue la luminance et n'a qu'un canal
+# d'entree. L'injection latente est traitee separement par la phase I.
+latent_watermarker: false
+watermarker_ckpt_path: /workspace/ckpt/base_64bits.pth
+watermarker_scaling_w: 0.1152
+
+# --- pertes (identiques) ----------------------------------------------------
+extractor_weight: 0.5
+perceptual_weight: 1.0
+pixel_weight: 1.0
+reconstruction_weight_wm: 1.0
+reconstruction_weight_ori: 0.0
+
+resolution: 256
+train_dataset: imagenet
+
+max_steps: 40000
+num_batches: 10
+evaluate_steps: 1000
+save_checkpoint_steps: 2000
+use_eval_mode_in_train: false
+clip_grad: 1
+compute_fid: false
+log: true
+amp: bf16
+
+lr_scheduler:
+    name: constant_with_warmup
+    warmup_steps: 300
+optimizer:
+    betas: [0.9, 0.999]
+    lr: 0.00002
+    name: adamw
+omega_lr: 0.0002

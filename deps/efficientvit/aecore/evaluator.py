@@ -120,6 +120,12 @@ class Evaluator:
             model = MaskgitVqgan()
         elif cfg.model == "maskbit":
             model = MaskBit14Bit()
+        elif cfg.model == "amused-vqvae":
+            # Tokeniseur VQ d'aMUSEd : la seule voie du depot vers un modele
+            # AUTOREGRESSIF pilotable par texte. maskgit-vqgan ne genere rien,
+            # il ne fait qu'encoder et decoder.
+            from deps.efficientvit.ae_model_zoo import AmusedVQGAN
+            model = AmusedVQGAN()
 
         # Reference model and freeze its parameters.
         reference_network = copy.deepcopy(model)

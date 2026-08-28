@@ -339,3 +339,95 @@ class MaskBit14Bit(MaskBitCompression):
         hf_filename = "maskbit_tokenizer_14bit.bin"
         
         super(MaskBit14Bit, self).__init__(config_dict, checkpoint_path, hf_repo_id, hf_filename)
+
+
+class AmusedVQGAN(nn.Module):
+    """Tokeniseur VQ d'aMUSEd, expose comme les autres autoencodeurs du zoo.
+
+    Pourquoi celui-ci
+    -----------------
+    La branche autoregressive du memoire exigeait un modele qui GENERE depuis
+    un texte. maskgit_utils.py ne contient qu'Encoder, Decoder et
+    VectorQuantizer : c'est un tokeniseur, il ne genere rien. aMUSEd est un
+    transformeur generatif masque -- la famille MaskGIT -- conditionne par
+    texte, et son tokeniseur VQ se conditionne comme celui de SANA.
+
+    Mesure du 2026-08-28 sur amused-256 : latent (64, 16, 16) a 256 px, soit
+    16 384 valeurs et 256 par bit pour un Omega de 64 bits. Le conditionneur y
+    trouve CINQ etages modulables [768, 512, 256, 256, 128], contre trois
+    seulement dans MaskGIT-VQGAN dont un etait la sortie RVB.
+
+    L'interface reproduit celle de MaskgitVqgan pour que le trainer, le
+    conditionneur et le watermarker enseignant fonctionnent sans modification.
+    """
+
+    def __init__(self, nom: str = "amused/amused-256"):
+        super().__init__()
+        from diffusers import VQModel
+        vq = VQModel.from_pretrained(nom, subfolder="vqvae")
+        # On expose encoder et decoder en attributs directs : l'evaluateur les
+        # gele par leur nom, et le conditionneur s'accroche au decodeur.
+        self.encoder = vq.encoder
+        self.decoder = vq.decoder
+        self.quantizer = vq.quantize
+        self.quant_conv = getattr(vq, "quant_conv", None)
+        self.post_quant_conv = getattr(vq, "post_quant_conv", None)
+        self.eval()
+        for p in self.parameters():
+            p.requires_grad = False
+
+    def preprocess(self, x): return x
+    def postprocess(self, x): return x
+
+    def encode_pre_quant(self, image: torch.Tensor):
+        h, w = image.shape[-2:]
+        original_size = (h, w)
+        if h % 16 != 0 or w % 16 != 0:
+            h = ((h // 16) + (1 if h % 16 else 0)) * 16
+            w = ((w // 16) + (1 if w % 16 else 0)) * 16
+            image = F.interpolate(image, size=(h, w), mode="bilinear", align_corners=False)
+        latent = self.encoder(image)
+        if self.quant_conv is not None:
+            latent = self.quant_conv(latent)
+        return latent, original_size
+
+    def quantize(self, latent: torch.Tensor):
+        sortie = self.quantizer(latent)
+        return sortie[0] if isinstance(sortie, (tuple, list)) else sortie
+
+    def decode(self, quant_latent: torch.Tensor, original_size: tuple):
+        z = quant_latent
+        if self.post_quant_conv is not None:
+            z = self.post_quant_conv(z)
+        x_hat = torch.clamp(self.decoder(z), 0.0, 1.0)
+        if original_size != x_hat.shape[-2:]:
+            x_hat = F.interpolate(x_hat, size=original_size, mode="bilinear",
+                                  align_corners=False)
+        return x_hat
+
+    def forward(self, x: torch.Tensor, global_step: int, watermarker=None, msg=None):
+        x = (x * 0.5) + 0.5                       # [-1,1] -> [0,1]
+        x = self.encoder(x)
+        if self.quant_conv is not None:
+            x = self.quant_conv(x)
+        quantize_before = (watermarker is not None
+                           and watermarker.latent_layer == "input_after_quantize")
+        if quantize_before:
+            x = self.quantize(x)
+        if watermarker is not None and msg is not None and watermarker.latent_watermarker:
+            # CipherMark donne un Omega DIFFERENT par image : on ne repete le
+            # message que s'il est effectivement unique pour tout le lot.
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
+            x = watermarker.blender(x, watermarker.embedder(x, msg_batch))
+        if not quantize_before:
+            x = self.quantize(x)
+        if self.post_quant_conv is not None:
+            x = self.post_quant_conv(x)
+        x = self.decoder(x)
+        if watermarker is not None and msg is not None and not watermarker.latent_watermarker:
+            msg_batch = (msg.repeat(x.shape[0], 1) if msg.shape[0] == 1
+                         else msg).to(x.device)
+            x = watermarker.embed(x.clamp(0, 1), msg_batch, is_video=False)["imgs_w"]
+        x = x * 2 - 1                             # [0,1] -> [-1,1]
+        return x, torch.tensor(0), {}
