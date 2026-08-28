@@ -72,8 +72,17 @@ model: dc-ae-f64c128-in-1.0
 # --- on repart du run gele, pas de l'archive 256 px --------------------------
 resume: true
 resume_path: /workspace/ckpt/phaseD512_conditionneur_512.pt
-resume_schedule: false
-resume_optimizer: false
+# Ces deux drapeaux valaient false au DEMARRAGE, quand la source etait le run
+# gele : compteur de pas remis a zero, et etat d'optimiseur ignore parce que
+# le gel ne laissait qu'un seul groupe de parametres, contre deux ici.
+#
+# Ils passent a true apres l'eviction du 2026-08-28 13:18. run_dir contient
+# desormais checkpoint.pt issu de CETTE phase, avec les memes deux groupes :
+# le trainer le trouve avant resume_path et la reprise est alors compatible.
+# Les laisser a false relancerait le compteur a zero et jetterait les moments
+# d'Adam accumules sur 6000 pas.
+resume_schedule: true
+resume_optimizer: true
 
 # --- le changement, et le seul ----------------------------------------------
 omega_nbits: 64

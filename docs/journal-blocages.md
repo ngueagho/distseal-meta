@@ -580,3 +580,50 @@ Arbitrage à faire.
 `corpus-eval-12k` n'a plus que `toutes/`, sans `train/` ni `val/` :
 `ImageFolder` cherche `data_dir/train` et la reprise aurait planté au
 démarrage, comme la phase D-512 ce matin. Deuxième effet de bord de l'étape 0.
+
+## 2026-08-28 — Éviction du pod en pleine phase D-512, et quatre relances ratées
+
+Le pod a été évincé vers 13:18, au pas 6000 du run dégelé. Diagnostic par
+élimination : disque conteneur retombé de 1,1 Go à 16 Mo, processus disparus,
+`/workspace` intact. La charge de l'hôte affichait 780 — machine partagée du
+Community Cloud, saturée.
+
+**Ce qui a survécu :** le checkpoint du pas 6000 (6,0 Go, poids et optimiseur),
+tout `/workspace`. **Ce qui est parti :** `/root`, `/tmp`, et *tous* les
+paquets pip.
+
+### La vraie perte de temps : quatre relances ratées
+
+Chaque relance mourait sur un `ModuleNotFoundError` différent — `omegaconf`,
+puis `transformers`/`diffusers`/`accelerate`, puis `torchmetrics`. J'ai deviné
+la liste des paquets manquants au lieu de la faire déterminer par la machine.
+Pire, `pip install -r requirements.txt` a *désinstallé* certains paquets que
+je venais de poser.
+
+Correctif : `runpod/preflight.py` tente l'import réel du trainer, lit le module
+absent dans l'exception, l'installe, et recommence — jusqu'à quinze fois. La
+liste n'a plus à être connue.
+
+Deuxième piège, plus discret : mes scripts de relance vivaient dans `/tmp`. Ils
+ont disparu au redémarrage suivant. Tout ce qui doit survivre à une éviction va
+dans `/workspace`.
+
+### Deux défauts de mon propre moniteur
+
+- Il cherchait les signatures d'erreur dans **tout** le journal, qui est ouvert
+  en ajout : il s'est déclenché sur le traceback d'une éviction déjà réparée.
+  La mort du processus est le signal fiable — un plantage tue le processus.
+- Son compteur de paliers n'avançait que d'un cran par sondage, donc
+  l'étiquette annonçait « seuil 0,75 franchi » quand la bit_acc valait déjà
+  0,898. Il rattrape maintenant en boucle.
+
+### La reprise elle-même
+
+`phaseD512_degele.yaml` passe `resume_schedule` et `resume_optimizer` à `true`.
+Ils valaient `false` au démarrage, quand la source était le run gelé à un seul
+groupe de paramètres ; désormais `run_dir/checkpoint.pt` vient de la même
+phase et porte les deux groupes. Les laisser à `false` aurait remis le compteur
+à zéro et jeté 6000 pas de moments d'Adam.
+
+Reprise vérifiée : `global_step=6000`, optimiseur rechargé, première validation
+à 0,9297 contre 0,9273 avant la coupure. Rien de perdu.
