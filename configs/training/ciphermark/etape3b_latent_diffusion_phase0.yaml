@@ -31,6 +31,22 @@
 # stationnaire. Si l'amorcage echoue ici aussi, la premiere chose a essayer est
 # de remonter le lot, pas de changer autre chose.
 #
+# LA RAMPE, CORRIGEE AVANT MEME D'AVOIR ECHOUE ICI
+# ------------------------------------------------
+# Cette config portait warmup_t=5 et lr=5e-4 -- exactement les reglages qui ont
+# fait exploser les activations de l'etape 3a trois fois de suite. La cause y a
+# ete etablie en lisant les checkpoints effondres : les running_var des
+# BatchNorm du bottleneck montaient x8 par etage jusqu'a 2,2e9, saturant les
+# non-linearites et rendant la sortie de l'embedder constante.
+#
+# Aucun ecretage de gradient n'existe dans ce chemin de code -- total_gnorm ne
+# sert qu'a la ponderation adaptative, inactive ici. Le seul garde-fou est donc
+# la douceur de la rampe : 20 epoques au lieu de 5, et lr 1e-4 au lieu de 5e-4,
+# comme la v3 de l'etape 3a qui, elle, a passe l'epoque 54 sans rechute.
+#
+# On applique le correctif AVANT de lancer, plutot que de repayer trois
+# echecs pour redecouvrir la meme chose sur un second autoencodeur.
+#
 # Lancement :
 #   PYTHONPATH=deps:. torchrun --nproc_per_node=1 --standalone train.py \
 #       --config configs/training/ciphermark/etape3b_latent_diffusion_phase0.yaml
@@ -79,8 +95,8 @@ iter_per_epoch: 200
 eval_freq: 10
 saveimg_freq: 50
 iter_per_valid: 10
-scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=5
-optimizer: AdamW,lr=5e-4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=20
+optimizer: AdamW,lr=1e-4
 full_eval_freq: 50
 finetune_detector_start: 2000
 workers: 8
