@@ -1,47 +1,60 @@
 # ============================================================================
-# ETAPE 3a, PHASE 0, EN SOLO -- LE LOT DE DISTSEAL, SANS PARTAGE DU GPU
+# ETAPE 3a, PHASE 0, v3 -- L'EMBALLEMENT D'ACTIVATIONS, ENFIN LA VRAIE CAUSE
 #
-# CE QUE LE RUN PARTAGE A MONTRE
-# ------------------------------
-# Lance en parallele de la phase F, donc a un lot de 8 au lieu des 16 de
-# DistSeal, le curriculum a bien sorti le modele du point stationnaire -- puis
-# l'y a laisse retomber :
-#
-#     epoque      17     18     19     20     21     22     23
-#     loss_decode 0,6740 0,6746 0,6738 0,6734 0,6848 0,6938 0,6930
-#
-# ln 2 = 0,693147. L'echappee n'avait creuse que 0,02 en vingt epoques, et le
-# PSNR a suivi la rechute : 17,26 puis 15,08. La reprise apres eviction n'y est
-# pour rien -- elle s'etait faite proprement a l'epoque 18, « All keys matched »,
-# optimiseur et ordonnanceurs compris, et l'effondrement est survenu trois
-# epoques APRES.
-#
-# LE DIAGNOSTIC
-# -------------
-# Un lot deux fois plus petit double le bruit de gradient, et une echappee de
-# point stationnaire est precisement ce qui y resiste le moins : le modele
-# n'etait pas assez loin du bassin pour ne pas y etre renvoye.
-#
-# Faire tourner les deux entrainements en parallele ne ralentissait donc pas
-# seulement l'etape 3a : cela l'EMPECHAIT de converger.
-#
-# CE QUI CHANGE ICI, ET RIEN D'AUTRE
+# TROIS ECHECS, TROIS FAUSSES PISTES
 # ----------------------------------
-# batch_size 8 -> 16, la valeur de DistSeal, et batch_size_eval 4 -> 8. Le run
-# a le GPU pour lui seul. Le curriculum de la phase 0 est conserve tel quel --
-# identity_only, lambda_d 0.0, disc_start repousse -- puisque c'est lui qui
-# avait produit l'echappee.
+# Les runs a lot 8, lot 16 + sw 2.0, et lot 16 + sw 0.5 + lambda_i 0.1
+# s'effondrent TOUS entre les epoques 17 et 21 -- soit ~3800 iterations --
+# quels que soient le lot, la force du tatouage et la contrainte de fidelite.
+# Trois hyperparametres differents, meme echec au meme endroit : ce n'etait
+# donc aucun d'eux.
 #
-# On repart de zero : le checkpoint du run partage est retombe au point trivial
-# et ne vaut rien comme point de depart. Il est archive sous
-# runs/etape3_latent_phase0_effondre_lot8, comme piece du diagnostic.
+# LA PREUVE, LUE DANS LES CHECKPOINTS EFFONDRES
+# ---------------------------------------------
+# Les poids de convolution sont sains (mediane 0,029). Mais les running_var
+# des BatchNorm de la pile bottleneck racontent une explosion d'ACTIVATIONS
+# en cascade, multipliee par ~8 a chaque etage :
 #
-# Lancement, une fois la phase F terminee :
-#   PYTHONPATH=deps:. torchrun --nproc_per_node=1 --standalone train.py \
-#       --config configs/training/ciphermark/etape3_latent_phase0_solo.yaml
+#     couche  1 :        7,0e3          couche  5 :   2,2e7
+#     couche  3 :        4,3e5          couche  7 :   2,2e9
+#
+# Une fois les activations gigantesques, chaque non-linearite sature et la
+# sortie de l'embedder devient CONSTANTE -- independante du message ET du
+# latent. L'extracteur n'a plus rien a lire : ln 2 exactement, bit_acc 0,500.
+# Et une perturbation constante bornee est petite apres decodage, d'ou le
+# PSNR qui REMONTE pendant l'effondrement -- ce qui m'avait fait accuser a
+# tort le tatouage de s'annuler par excès de contrainte de fidelite.
+#
+# POURQUOI RIEN NE L'ARRETE, ET POURQUOI PAS CHEZ DISTSEAL
+# --------------------------------------------------------
+# total_gnorm=1.0 n'ecrete PAS les gradients : c'est la constante de la
+# ponderation adaptative des pertes, active uniquement si balanced=true --
+# et balanced est false. Aucun ecretage n'existe dans ce chemin de code.
+#
+# La difference avec DistSeal est la RAMPE : son warmup fait 20 epoques de
+# 1000 iterations, soit 20 000 pas de montee en LR ; le notre en faisait
+# 1000. Il atteint 5e-4 vingt fois plus doucement -- l'emballement, qui se
+# compose pas a pas, n'a jamais le temps de s'amorcer chez lui.
+#
+# CE QUI CHANGE (deux nombres, zero code)
+# ---------------------------------------
+#   warmup_t : 5 -> 20 epoques (4000 pas de rampe)
+#   lr       : 5e-4 -> 1e-4
+#
+# Et l'on REVIENT au depart exact de DistSeal pour le reste : scaling_w 2.0,
+# lambda_i 0.0. Le run 2, qui avait ces reglages, portait la meilleure
+# trajectoire des trois (0,6579 a l'epoque 13) avant l'emballement.
+#
+# CE QU'IL FAUT SURVEILLER
+# ------------------------
+# L'effondrement, s'il revient, arrivera plus tard (LR plus bas, croissance
+# plus lente) : surveiller au-dela de l'epoque 40. Signature : perte qui
+# remonte vers 0,6931 PENDANT que le PSNR remonte. Si cela se reproduit
+# malgre la rampe douce, la correction suivante est un vrai ecretage de
+# gradient dans train.py -- un changement de code, assume et documente.
 # ============================================================================
 
-output_dir: /workspace/runs/etape3_latent_phase0_solo
+output_dir: /workspace/runs/etape3_latent_p0_v3
 
 dataset:
     train_dir: /workspace/corpus-train512/train/toutes
@@ -86,8 +99,8 @@ iter_per_epoch: 200
 eval_freq: 10
 saveimg_freq: 50
 iter_per_valid: 10
-scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=5
-optimizer: AdamW,lr=5e-4
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=20
+optimizer: AdamW,lr=1e-4
 full_eval_freq: 50
 finetune_detector_start: 2000
 workers: 6

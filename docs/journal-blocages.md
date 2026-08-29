@@ -777,3 +777,43 @@ comme pièce du diagnostic, et non effacé.
 « Lancer en parallèle » n'est pas neutre pour un entraînement : la taille de
 lot est un hyperparamètre, pas un réglage d'infrastructure. Toute mise en
 parallèle qui la réduit modifie la recette.
+
+## 2026-08-29 — Étape 3a : trois échecs, trois fausses pistes, et la vraie cause
+
+Les trois essais de la phase 0 — lot 8, lot 16 à `scaling_w` 2,0, lot 16 à
+`scaling_w` 0,5 avec `lambda_i` 0,1 — s'effondrent **tous** entre les époques
+17 et 21, soit ~3800 itérations, quels que soient les réglages. J'ai accusé
+successivement le bruit de gradient du petit lot, puis la force du tatouage,
+puis l'absence de contrainte de fidélité. Trois hyperparamètres différents,
+même échec au même endroit : ce n'était aucun d'eux.
+
+### La preuve, lue dans les checkpoints effondrés
+
+Poids de convolution sains (médiane 0,029). Mais les `running_var` des
+BatchNorm de la pile bottleneck : 7×10³ → 4,3×10⁵ → 2,2×10⁷ → **2,2×10⁹**,
+multipliés par ~8 à chaque étage. Une **explosion d'activations** en cascade.
+Saturées, les non-linéarités rendent la sortie de l'embedder constante —
+indépendante du message et du latent. D'où ln 2 exactement, et d'où le PSNR
+qui *remonte* pendant l'effondrement (une perturbation constante bornée est
+petite après décodage) — le détail qui m'avait envoyé sur la piste inverse.
+
+### Pourquoi rien ne l'arrête, et pourquoi pas chez DistSeal
+
+`total_gnorm: 1.0` n'écrête pas les gradients : c'est la constante de la
+pondération adaptative des pertes, active seulement si `balanced=true` — et
+`balanced` est `false`. **Aucun écrêtage n'existe dans ce chemin de code.**
+La différence avec DistSeal est la rampe : 20 000 pas de montée en LR chez
+lui, 1000 chez nous. L'emballement se compose pas à pas ; chez lui il n'a
+jamais le temps de s'amorcer.
+
+### v3, et la leçon
+
+Deux nombres changent, zéro code : `warmup_t` 5 → 20 époques, `lr` 5e-4 →
+1e-4. Retour au départ exact de DistSeal pour le reste (sw 2,0, λ_i 0). Si
+l'emballement revient malgré la rampe douce — à surveiller au-delà de
+l'époque 40, il sera plus lent — le levier suivant est un vrai écrêtage de
+gradient dans `train.py`, changement de code assumé.
+
+La leçon de méthode : trois corrections d'hyperparamètres successives sans
+examiner l'état interne du modèle. **Un checkpoint effondré se lit** — les
+running_var y racontaient tout depuis le premier échec.
