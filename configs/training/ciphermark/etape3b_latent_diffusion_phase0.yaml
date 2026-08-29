@@ -1,0 +1,86 @@
+# ============================================================================
+# ETAPE 3b, PHASE 0 -- L'EMBEDDER LATENT DE LA VOIE DIFFUSION
+#
+# CE QUE C'EST
+# ------------
+# La seconde des deux variantes latentes de DistSeal, copiee de
+# configs/training/diffusion/posthoc_latent.yaml : unet_bottleneck128 sur le
+# DC-AE f64c128, a 512 px, scaling_w 1.5. La premiere, l'etape 3a, opere sur le
+# tokeniseur MaskGIT a 256 px avec scaling_w 2.0.
+#
+# Les deux ensemble couvrent la moitie « espace latent » de l'objectif. Si le
+# temps manque, l'etape 3a seule suffit a la demontrer -- 3b la confirme sur un
+# second autoencodeur, celui-la meme qui sert la chaine diffusion validee a
+# l'etape 1.
+#
+# LE CURRICULUM D'EMBLEE
+# ----------------------
+# Contrairement a l'etape 3a, on ne tente PAS la recette complete en premier.
+# Elle a coute deux heures pour rester collee a ln 2 : les augmentations
+# completes et le discriminateur des l'epoque 0 empechent l'amorcage. On
+# demarre donc directement en phase 0 -- identity_only, lambda_d 0.0,
+# disc_start repousse -- et une phase 1 restaurera ensuite sa recette.
+#
+# LE LOT
+# ------
+# DistSeal utilise 16. A 512 px sur le DC-AE f64c128, c'est incertain sur une
+# carte de 24 Go : la phase D-512 y tenait a peine avec un lot de 2, mais elle
+# entrainait tout le decodeur, alors qu'ici l'autoencodeur est gele et seuls
+# l'embedder et l'extracteur apprennent. On tente 8, en connaissance de cause :
+# reduire le lot est exactement ce qui a fait retomber l'etape 3a au point
+# stationnaire. Si l'amorcage echoue ici aussi, la premiere chose a essayer est
+# de remonter le lot, pas de changer autre chose.
+#
+# Lancement :
+#   PYTHONPATH=deps:. torchrun --nproc_per_node=1 --standalone train.py \
+#       --config configs/training/ciphermark/etape3b_latent_diffusion_phase0.yaml
+# ============================================================================
+
+output_dir: /workspace/runs/etape3b_latent_diffusion_phase0
+
+dataset:
+    train_dir: /workspace/corpus-train512/train/toutes
+    val_dir: /workspace/corpus-train512/val/toutes
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 512
+img_size_val: 512
+img_size: 512
+embedder_model: unet_bottleneck128
+autoencoder: DCAEf64c128
+scaling_w: 1.5
+scaling_w_schedule: Constant,scaling_min=1.5,epochs=200
+seed: 0
+batch_size_eval: 2
+batch_size: 8
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+attenuation: null
+scaling_i: 1.0
+videowam_step_size: 8
+num_augs: 1
+augmentation_config: configs/augmentation/identity_only.yaml
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_maxpool: 8
+maskbit_disc: true
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+epochs: 200
+iter_per_epoch: 200
+eval_freq: 10
+saveimg_freq: 50
+iter_per_valid: 10
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmup_t=5
+optimizer: AdamW,lr=5e-4
+full_eval_freq: 50
+finetune_detector_start: 2000
+workers: 8
