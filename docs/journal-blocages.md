@@ -734,3 +734,46 @@ J'avais écrit le préflight en pensant à l'entraînement en cours à ce
 moment-là, pas à l'ensemble des points d'entrée du dépôt. Une vérification
 partielle qui annonce « imports résolus » est plus trompeuse qu'aucune
 vérification, parce qu'elle donne le sentiment d'avoir couvert le sujet.
+
+## 2026-08-29 — Le parallélisme empêchait l'étape 3a de converger
+
+Lancée en parallèle de la phase F, l'étape 3a est sortie du point stationnaire
+grâce au curriculum, puis y est retombée :
+
+| époque | 17 | 18 | 19 | 20 | 21 | 22 | 23 |
+|---|---|---|---|---|---|---|---|
+| loss_decode | 0,6740 | 0,6746 | 0,6738 | 0,6734 | 0,6848 | 0,6938 | 0,6930 |
+
+`ln 2 = 0,693147`. Le PSNR a suivi la rechute : 17,26 puis 15,08.
+
+### Ce que la chronologie exclut
+
+La reprise après éviction n'y est pour rien. Elle s'est faite à l'époque 18,
+proprement — « All keys matched », optimiseur, discriminateur et les deux
+ordonnanceurs rechargés — et l'effondrement est survenu **trois époques après**,
+aux époques 21 et 22.
+
+### Le diagnostic
+
+L'échappée n'avait creusé que 0,02 sous ln 2 en vingt époques. Le partage du
+GPU imposait un lot de 8 au lieu des 16 de DistSeal — la phase F occupait
+12,8 Go des 24,5. Un lot deux fois plus petit double le bruit de gradient, et
+une échappée de point stationnaire est précisément ce qui y résiste le moins :
+le modèle n'était pas assez loin du bassin pour ne pas y être renvoyé.
+
+**Le parallélisme ne ralentissait donc pas seulement l'étape 3a : il
+l'empêchait de converger.** Ce n'est pas un arbitrage débit contre latence,
+c'est une condition de convergence.
+
+### Décision
+
+Sérialisation. L'étape 3a est arrêtée, la phase F retrouve le GPU entier et
+finit plus tôt ; l'étape 3a repartira seule, avec le lot de 16 de DistSeal.
+Le run effondré est archivé sous `runs/etape3_latent_phase0_effondre_lot8`
+comme pièce du diagnostic, et non effacé.
+
+### Ce qu'il faut en retenir pour la suite
+
+« Lancer en parallèle » n'est pas neutre pour un entraînement : la taille de
+lot est un hyperparamètre, pas un réglage d'infrastructure. Toute mise en
+parallèle qui la réduit modifie la recette.
