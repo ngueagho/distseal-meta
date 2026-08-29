@@ -702,3 +702,35 @@ départ. Le signal à surveiller n'est pas la bit_acc mais `loss_decode`, qui
 doit quitter 0,6931. Si elle y reste après 5000 itérations, le curriculum
 n'est pas en cause et il faudra chercher ailleurs — amorçage de l'extracteur,
 ou `scaling_w`. Le moniteur alerte dans les deux sens.
+
+## 2026-08-29 — Deuxième éviction, et un préflight qui ne couvrait qu'une chaîne
+
+Deuxième éviction en douze heures, vers 00:20. Même signature : disque
+conteneur remis à zéro, aucun processus survivant, `/workspace` intact. Les
+deux checkpoints ont survécu — phase F au pas 44 000, étape 3a à l'époque 18.
+
+### Ce que le préflight a bien fait
+
+Il a réinstallé **douze paquets** tout seul pour la chaîne `distill.py`. Le
+même incident avait coûté quatre relances ratées la veille.
+
+### Ce qu'il ne faisait pas
+
+L'étape 3a est morte au démarrage sur `ModuleNotFoundError: pytorch_msssim`,
+alors que le préflight venait d'annoncer douze installations réussies. Il ne
+sondait que les imports de `distill.py`, via le module trainer. Or `train.py`
+— qui porte les phases A, B, H et l'étape 3 — a une chaîne d'imports
+différente.
+
+Corrigé : le préflight éprouve maintenant les **deux** points d'entrée.
+`train.py` n'étant pas importable comme un module, on l'exerce par `--help`,
+qui exécute tous ses imports sans rien entraîner. La sonde a immédiatement
+trouvé trois paquets de plus : `pytorch_msssim`, `lpips`, `tensorboard`.
+
+### La leçon, qui est la même que la veille sous un autre angle
+
+Un outil censé m'éviter de deviner ne vaut que s'il couvre tout ce qu'on lance.
+J'avais écrit le préflight en pensant à l'entraînement en cours à ce
+moment-là, pas à l'ensemble des points d'entrée du dépôt. Une vérification
+partielle qui annonce « imports résolus » est plus trompeuse qu'aucune
+vérification, parce qu'elle donne le sentiment d'avoir couvert le sujet.
