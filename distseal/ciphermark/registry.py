@@ -39,6 +39,11 @@ class TraceEntry:
     rs_nsym: int
     session: Optional[str]
     created_at: str
+    # Identifiant de l'utilisateur dont la cle a signe cette trace. C'est la
+    # moitie publique de l'attribution : le registre dit QUI, la cle derivee
+    # prouve que c'est vrai. Sans cette colonne le verifieur ne sait pas
+    # quelle cle rederiver, et l'attribution reste implicite.
+    user: Optional[str] = None
 
 
 _SCHEMA = """
@@ -48,11 +53,16 @@ CREATE TABLE IF NOT EXISTS traces (
     n_bits     INTEGER NOT NULL,
     rs_nsym    INTEGER NOT NULL,
     h_ref      BLOB,
+    user       TEXT,
     session    TEXT,
     created_at TEXT    NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_traces_session ON traces(session);
 """
+
+# Les registres crees avant la colonne user doivent continuer a s'ouvrir :
+# SQLite ne fait pas d'IF NOT EXISTS sur les colonnes, on migre a la main.
+_MIGRATION_USER = "ALTER TABLE traces ADD COLUMN user TEXT"
 
 
 class TraceRegistry:
@@ -73,6 +83,13 @@ class TraceRegistry:
         self._conn = sqlite3.connect(path)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        # La colonne user est arrivee apres les premieres bases : on migre
+        # AVANT de creer son index, sinon l'index echoue sur l'ancien schema.
+        cols = [r[1] for r in self._conn.execute("PRAGMA table_info(traces)")]
+        if "user" not in cols:
+            self._conn.execute(_MIGRATION_USER)
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_traces_user ON traces(user)")
         self._conn.commit()
 
     # ------------------------------------------------------------- ecriture --
@@ -86,6 +103,7 @@ class TraceRegistry:
         session: Optional[str] = None,
         overwrite: bool = False,
         h_ref: Optional[bytes] = None,
+        user: Optional[str] = None,
     ) -> None:
         """
         Enregistre la parite associee a un nonce.
@@ -106,18 +124,18 @@ class TraceRegistry:
             if overwrite:
                 self._conn.execute(
                     "INSERT OR REPLACE INTO traces "
-                    "(nonce, parity, n_bits, rs_nsym, h_ref, session, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "(nonce, parity, n_bits, rs_nsym, h_ref, user, session, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (nonce, bytes(parity), n_bits, rs_nsym,
-                     bytes(h_ref) if h_ref is not None else None, session, now),
+                     bytes(h_ref) if h_ref is not None else None, user, session, now),
                 )
             else:
                 self._conn.execute(
                     "INSERT INTO traces "
-                    "(nonce, parity, n_bits, rs_nsym, h_ref, session, created_at) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "(nonce, parity, n_bits, rs_nsym, h_ref, user, session, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (nonce, bytes(parity), n_bits, rs_nsym,
-                     bytes(h_ref) if h_ref is not None else None, session, now),
+                     bytes(h_ref) if h_ref is not None else None, user, session, now),
                 )
         except sqlite3.IntegrityError as exc:
             raise NonceReuseError(
@@ -146,6 +164,7 @@ class TraceRegistry:
             rs_nsym=row["rs_nsym"],
             session=row["session"],
             created_at=row["created_at"],
+            user=row["user"],
         )
 
     def parity_for(self, nonce: int) -> bytes:
@@ -175,6 +194,13 @@ class TraceRegistry:
                 "version anterieure, ou embed() lance sans hamming_threshold"
             )
         return bytes(row["h_ref"])
+
+    def user_for(self, nonce: int) -> Optional[str]:
+        """Identifiant enregistre pour ce nonce -- la cle a rederiver."""
+        entry = self.get(nonce)
+        if entry is None:
+            raise KeyError(f"nonce {nonce} absent du registre")
+        return entry.user
 
     def next_free_nonce(self) -> int:
         """Plus grand nonce enregistre + 1 (0 si la table est vide)."""
