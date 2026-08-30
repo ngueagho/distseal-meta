@@ -34,7 +34,10 @@
 # ============================================================================
 
 output_dir: /workspace/runs/etape3_latent_phase1
-resume_from: /workspace/runs/etape3_latent_phase0_solo/checkpoint.pth
+# ATTENTION au chemin : la phase 0 qui a fonctionne est la v3 (rampe douce),
+# ecrite dans etape3_latent_p0_v3. Les runs effondres sont archives sous
+# *_effondre_* et ne doivent jamais servir de point de depart.
+resume_from: /workspace/runs/etape3_latent_p0_v3/checkpoint.pth
 resume_optimizer_state: false
 
 dataset:

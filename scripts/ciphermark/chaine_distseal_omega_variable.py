@@ -66,6 +66,91 @@ NOMS_CLASSES = {
 def log(m): print(f"[distseal] {time.strftime('%H:%M:%S')} {m}", flush=True)
 
 
+class ProtocoleCrypto:
+    """Le protocole cryptographique complet, branche sur la chaine generative.
+
+    Sans lui, la chaine tire Omega avec torch.randint : elle prouve que le
+    decodeur PORTE un temoin variable, mais pas que ce temoin est celui du
+    protocole -- HMAC lie au contenu, masque OTP, registre, attribution. Ce
+    collage est la derniere piece entre les deux moities validees separement :
+    la chaine (300 verdicts sur 300) et la couche crypto (8 proprietes a
+    5 millions de tirages, attribution sans erreur sur 25 000 verifications).
+
+    LE POINT DELICAT DU REGIME GENERATIF : a quel hash lier Omega ?
+    La boucle de point fixe du post-hoc ne converge pas (resultat negatif
+    etabli), et le hash de l'image marquee depend d'Omega -- circulaire. On lie
+    donc Omega au hash du decodage SANS temoin, deterministe pour un latent
+    donne, et le controle de contenu compare au hash de l'image MARQUEE,
+    enregistre a l'emission :
+
+        h_base   = PHash(decode(latent))            -> Omega = HMAC(k, h_base) xor PRG
+        h_marque = PHash(decode(latent | Omega))    -> reference du controle de contenu
+
+    Le registre porte les deux : h_base dans la colonne parity (libre ici,
+    aucune parite Reed-Solomon n'existant plus depuis le passage a la
+    verification par comparaison), h_marque dans h_ref, et l'identifiant dans
+    user. Le verifieur rederive la cle de l'utilisateur enregistre : c'est
+    l'attribution opposable, rien n'est stocke de secret.
+    """
+
+    def __init__(self, user_id: str, hash_bits: int, seuil: float, chemin_registre: str):
+        from distseal.ciphermark.phash import PerceptualHash, _try_load_dinov2, _DCTFallback
+        from distseal.ciphermark.witness import WitnessField, WitnessConfig
+        from distseal.ciphermark.registry import TraceRegistry
+        from distseal.ciphermark import crypto as _c
+        self._c = _c
+        self.cfg = WitnessConfig()
+        self.user_id = user_id
+        self.k_master = _c.random_seed(32)
+        self.s_master = _c.random_seed(32)
+        self.wf = WitnessField.for_user(s_master=self.s_master,
+                                        k_master=self.k_master,
+                                        user_id=user_id, cfg=self.cfg)
+        dino = _try_load_dinov2()
+        self.phash = PerceptualHash(n_bits=hash_bits,
+                                    backbone=dino or _DCTFallback()).to(DEVICE).eval()
+        self.tau = round(seuil * hash_bits)
+        self.registre = TraceRegistry(chemin_registre)
+        log(f"protocole crypto : cle derivee de \"{user_id}\", hash "
+            f"{'DINOv2' if dino is not None else 'DCT'} {hash_bits} bits, "
+            f"tau={self.tau}, registre {chemin_registre}")
+
+    def _h(self, img01) -> bytes:
+        import torch as _t
+        with _t.no_grad():
+            return self._c.bits_to_bytes(self.phash(img01)[0].cpu().numpy())
+
+    def emettre(self, img_nu, nonce: int):
+        """h_base -> Omega. A appeler AVANT le decodage conditionne."""
+        import torch as _t
+        h_base = self._h(img_nu)
+        om = self.wf.build_omega(h_base, image_id=nonce)
+        return _t.tensor(om[None].astype("int64"), device=DEVICE), h_base
+
+    def enregistrer(self, nonce: int, h_base: bytes, img_w) -> None:
+        self.registre.put(nonce=nonce, parity=h_base, n_bits=self.cfg.n_bits,
+                          rs_nsym=0, h_ref=self._h(img_w), user=self.user_id,
+                          session="chaine-distseal")
+
+    def verifier(self, bits_obs, img_obs, nonce: int) -> dict:
+        """Le chemin du verifieur, complet : registre -> rederivation -> verdict."""
+        import numpy as _np
+        from distseal.ciphermark.witness import WitnessField
+        e = self.registre.get(nonce)
+        k = WitnessField.derive_user_key(self.k_master, e.user, self.cfg)
+        wf = type(self.wf)(s_master=self.s_master, k_secret=k, cfg=self.cfg)
+        attendu = (wf.expected_tag_bits(bytes(e.parity))[: self.cfg.n_bits]
+                   ^ wf.keystream_bits(nonce)[: self.cfg.n_bits])
+        d_tag = int((_np.asarray(bits_obs, dtype=_np.uint8) != attendu).sum())
+        h_obs = self._h(img_obs)
+        h_ref = self.registre.h_ref_for(nonce)   # TraceEntry n'expose pas h_ref
+        d_hash = sum(bin(a ^ b).count("1") for a, b in zip(h_obs, h_ref))
+        return {"utilisateur": e.user, "d_tag": d_tag,
+                "p_valeur": binomial_pvalue(d_tag, self.cfg.n_bits),
+                "d_hash": d_hash, "tau": self.tau,
+                "contenu_ok": d_hash <= self.tau}
+
+
 def omega_hex(bits) -> str:
     """Serialise un Omega binaire en hexadecimal, bit de poids fort en tete.
 
@@ -157,6 +242,14 @@ def main() -> int:
     ap.add_argument("--cfg-scale", type=float, default=4.0)
     ap.add_argument("--taille", type=int, default=512)
     ap.add_argument("--attaques", action="store_true")
+    ap.add_argument("--crypto", action="store_true",
+                    help="Omega vient du protocole complet (HMAC lie au "
+                         "contenu, PRG, registre, cle derivee de --user-id) "
+                         "au lieu d'un tirage uniforme")
+    ap.add_argument("--user-id", default="createur-0001",
+                    help="identifiant dont la cle est derivee (synthetique)")
+    ap.add_argument("--hash-bits", type=int, default=256)
+    ap.add_argument("--seuil-hamming", type=float, default=0.27)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out-dir", default="runs/chaine_distseal")
     args = ap.parse_args()
@@ -184,6 +277,10 @@ def main() -> int:
 
     resultats = []
     g = torch.Generator(device=DEVICE).manual_seed(args.seed)
+    proto = (ProtocoleCrypto(args.user_id, args.hash_bits, args.seuil_hamming,
+                             os.path.join(args.out_dir, "registre.sqlite"))
+             if args.crypto else None)
+    nonce_suivant = 0
 
     if args.famille == "diffusion":
         # ------------------- le generateur de DistSeal, tel quel ------------
@@ -205,18 +302,25 @@ def main() -> int:
             t0 = time.time()
             etiq = torch.tensor([cl], device=DEVICE)
             nulle = torch.tensor([1000], device=DEVICE)   # classe nulle du CFG
-            omega = torch.randint(0, 2, (1, nbits), device=DEVICE)
             with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
                 latent = diff.generate(etiq, nulle, args.cfg_scale, g)
             latent = latent.float() / echelle
+            # Le decodage SANS temoin vient en premier : en mode crypto c'est
+            # de son hash que nait Omega -- lier le temoin au contenu de la
+            # generation exige de connaitre ce contenu avant de le marquer.
             with torch.no_grad():
-                # LE point : le meme latent, decode avec et sans temoin.
+                img_nu = ae.decode(latent)
+            img_nu = (img_nu.float() * 0.5 + 0.5).clamp(0, 1)
+            if proto is not None:
+                nonce = nonce_suivant; nonce_suivant += 1
+                omega, h_base = proto.emettre(img_nu, nonce)
+            else:
+                omega = torch.randint(0, 2, (1, nbits), device=DEVICE)
+            with torch.no_grad():
                 with cond.omega(omega):
                     img_w = ae.decode(latent)
-                img_nu = ae.decode(latent)
             t_gen = time.time() - t0
             img_w = (img_w.float() * 0.5 + 0.5).clamp(0, 1)
-            img_nu = (img_nu.float() * 0.5 + 0.5).clamp(0, 1)
 
             x = F.interpolate(img_w, size=(img_size, img_size), mode="bilinear",
                               align_corners=False, antialias=True)
@@ -230,6 +334,11 @@ def main() -> int:
             base = os.path.join(args.out_dir, f"classe_{cl:03d}_{nom.replace(' ', '_')}")
             save_image(img_nu, base + "_sans_omega.png")
             save_image(img_w, base + "_avec_omega.png")
+            crypto_info = None
+            if proto is not None:
+                proto.enregistrer(nonce, h_base, img_w)
+                crypto_info = proto.verifier(bits[0].cpu().numpy(), img_w, nonce)
+                crypto_info["nonce"] = nonce
             # Omega est enregistre en hexadecimal. Sans lui, toute mesure
             # ulterieure sur ces images doit prendre l'extraction propre pour
             # reference, et ne mesure donc qu'une degradation RELATIVE : on ne
@@ -238,6 +347,8 @@ def main() -> int:
                      "omega_hex": omega_hex(omega[0]),
                      "erreurs_omega": err, "nbits": nbits, "p_valeur": pv,
                      "psnr_vs_sans_omega": psnr, "secondes": round(t_gen, 1)}
+            if crypto_info is not None:
+                ligne["crypto"] = crypto_info
             if args.attaques:
                 from distseal.augmentation import valuemetric
                 ligne["apres_attaque"] = {}
@@ -284,15 +395,21 @@ def main() -> int:
             im = Image.open(f).convert("RGB").resize((256, 256))
             x0 = torch.from_numpy(np.asarray(im).astype(np.float32) / 255.) \
                      .permute(2, 0, 1)[None].to(DEVICE)
-            omega = torch.randint(0, 2, (1, nbits), device=DEVICE)
             t0 = time.time()
             with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
                 l, taille = ae.encode_pre_quant(x0)
                 q = ae.quantize(l)
+                img_nu = ae.decode(q, taille)
+            img_nu = img_nu.float().clamp(0, 1)
+            if proto is not None:
+                nonce = nonce_suivant; nonce_suivant += 1
+                omega, h_base = proto.emettre(img_nu, nonce)
+            else:
+                omega = torch.randint(0, 2, (1, nbits), device=DEVICE)
+            with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
                 with cond.omega(omega):
                     img_w = ae.decode(q, taille)
-                img_nu = ae.decode(q, taille)
-            img_w, img_nu = img_w.float().clamp(0, 1), img_nu.float().clamp(0, 1)
+            img_w = img_w.float().clamp(0, 1)
             xin = F.interpolate(img_w, size=(img_size, img_size), mode="bilinear",
                                 align_corners=False, antialias=True)
             with torch.no_grad():
@@ -303,12 +420,17 @@ def main() -> int:
             base = os.path.join(args.out_dir, f"autoreg_{i:03d}")
             save_image(img_nu, base + "_sans_omega.png")
             save_image(img_w, base + "_avec_omega.png")
-            resultats.append({"famille": "autoregressif", "source": os.path.basename(f),
-                              "omega_hex": omega_hex(omega[0]),
-                              "erreurs_omega": err, "nbits": nbits,
-                              "p_valeur": binomial_pvalue(err, nbits),
-                              "psnr_vs_sans_omega": psnr,
-                              "secondes": round(time.time() - t0, 1)})
+            ligne = {"famille": "autoregressif", "source": os.path.basename(f),
+                     "omega_hex": omega_hex(omega[0]),
+                     "erreurs_omega": err, "nbits": nbits,
+                     "p_valeur": binomial_pvalue(err, nbits),
+                     "psnr_vs_sans_omega": psnr,
+                     "secondes": round(time.time() - t0, 1)}
+            if proto is not None:
+                proto.enregistrer(nonce, h_base, img_w)
+                ligne["crypto"] = proto.verifier(bits[0].cpu().numpy(), img_w, nonce)
+                ligne["crypto"]["nonce"] = nonce
+            resultats.append(ligne)
             log(f"    {os.path.basename(f)} | Omega {err}/{nbits} | "
                 f"PSNR vs sans temoin {psnr:.2f} dB")
 
@@ -330,6 +452,15 @@ def main() -> int:
     parfaits = sum(1 for r in resultats if r["erreurs_omega"] == 0)
     print(f"  Omega relu sans erreur : {parfaits}/{len(resultats)}")
     print(f"  verdict rendu (p < 1e-6) : {n_sur}/{len(resultats)}")
+    if proto is not None:
+        cr = [r["crypto"] for r in resultats if "crypto" in r]
+        ok_tag = sum(1 for c in cr if c["p_valeur"] < 1e-6)
+        ok_ctn = sum(1 for c in cr if c["contenu_ok"])
+        ok_usr = sum(1 for c in cr if c["utilisateur"] == args.user_id)
+        print(f"  -- protocole crypto (HMAC+PRG+registre) --")
+        print(f"  tag verifie par rederivation : {ok_tag}/{len(cr)}")
+        print(f"  contenu dans le rayon tau     : {ok_ctn}/{len(cr)}")
+        print(f"  attribue a {args.user_id} : {ok_usr}/{len(cr)}")
     print()
     print("  Chaque image porte un Omega DIFFERENT, tire a la generation.")
     print("  DistSeal grave un message fixe dans les poids : toutes ses")

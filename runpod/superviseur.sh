@@ -41,18 +41,21 @@ etape_config()  { case "$1" in
   e3a_p0)   echo "$C/etape3_latent_phase0_solo.yaml";;
   e3a_p1)   echo "$C/etape3_latent_phase1.yaml";;
   e3b_p0)   echo "$C/etape3b_latent_diffusion_phase0.yaml";;
+  e3b_p1)   echo "$C/etape3b_latent_phase1.yaml";;
 esac; }
 etape_journal() { case "$1" in
   phaseF)   echo "/workspace/logs/phaseF_reprise.log";;
   e3a_p0)   echo "/workspace/logs/etape3_p0_solo.log";;
   e3a_p1)   echo "/workspace/logs/etape3_p1.log";;
   e3b_p0)   echo "/workspace/logs/etape3b_p0.log";;
+  e3b_p1)   echo "/workspace/logs/etape3b_p1.log";;
 esac; }
 etape_suivante() { case "$1" in
   phaseF)   echo "e3a_p0";;
   e3a_p0)   echo "e3a_p1";;
   e3a_p1)   echo "e3b_p0";;
-  e3b_p0)   echo "FINI";;
+  e3b_p0)   echo "e3b_p1";;
+  e3b_p1)   echo "FINI";;
 esac; }
 
 vivant() { pgrep -f "config=$(etape_config "$1")" >/dev/null && return 0
