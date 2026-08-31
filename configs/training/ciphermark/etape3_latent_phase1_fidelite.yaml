@@ -1,0 +1,123 @@
+# ============================================================================
+# ETAPE 3a, PHASE 1 v2 -- RENDRE L'IMAGE UTILISABLE
+#
+# CE QUE LA v1 A PRODUIT
+# ----------------------
+# A l'epoque 50, la lecture progresse (bit_acc 0,88) mais l'image est detruite.
+# Mesure directe sur les images de validation sauvegardees :
+#
+#   PSNR image marquee vs originale                 :  8,21 dB
+#   PSNR reconstruction sans tatouage vs originale  : 17,75 dB  <- plafond de l'AE
+#   PSNR marquee vs reconstruction                  :  8,38 dB  <- cout du tatouage
+#
+#   residu du tatouage : moyen 0,307 sur une echelle 0-1, sature a 1,000
+#   pixels modifies de plus de 5 %  : 95,7 %
+#
+# Ce n'est pas un filigrane, c'est une reecriture. Le tatouage coute 9,5 dB,
+# plus que la reconstruction elle-meme.
+#
+# POURQUOI, ET POURQUOI CE N'EST PAS UNE SURPRISE
+# -----------------------------------------------
+# La v1 restaure la recette de DistSeal, dont lambda_i vaut 0 : AUCUNE
+# contrainte de fidelite perceptuelle. Face a lambda_dec = 1,0, seul le
+# discriminateur (0,1) pousse a la qualite, dix fois plus faiblement. Le modele
+# fait donc ce qui est rationnel -- il maximise la lecture en ecrasant l'image.
+#
+# C'est le meme mecanisme qui avait rendu le tatouage VISIBLE en espace pixel
+# (cf. phase H, qui l'a corrige par lambda_i et l'attenuation JND). La phase 0
+# l'avait deja neutralise par scaling_w 0,5 et lambda_i 0,1 ; la phase 1 est
+# revenue aux valeurs de DistSeal, et le probleme avec.
+#
+# CE QUI CHANGE
+# -------------
+#   lambda_i   0,0 -> 0,5   la fidelite pese enfin la moitie de la lecture
+#   lambda_d   0,1 -> 0,2   le discriminateur suit
+#   scaling_w  2,0 -> 0,8   mesure : a 2,0 la perturbation vaut 1,1 fois
+#                           l'ecart-type du latent ; a 0,8 elle en vaut 0,42
+#   calendrier Cosine -> Constant : la rampe de DistSeal ne descendait qu'a
+#                           partir de l'epoque 100, jamais atteinte a 150
+#
+# CE QU'IL FAUT SURVEILLER, ET DANS QUEL ORDRE
+# --------------------------------------------
+# Le PSNR d'abord : il doit QUITTER les 8-10 dB et monter vers 20 dB, c'est-a-
+# dire s'approcher du plafond de 17,75 dB de l'autoencodeur. La bit_acc
+# ensuite : elle sera plus basse qu'en v1, c'est le prix a payer et c'est
+# voulu. Un tatouage qui lit a 0,88 en detruisant l'image ne vaut rien ; un
+# tatouage qui lit a 0,80 en la preservant est utilisable.
+#
+# Si le PSNR ne monte pas malgre lambda_i = 0,5, c'est que la capacite du
+# canal latent est en cause et non le reglage -- il faudra alors reduire
+# nbits, comme le mur de capacite du chapitre 3 l'a montre en espace pixel.
+# ============================================================================
+
+output_dir: /workspace/runs/etape3_latent_p1_fidelite
+# ATTENTION au chemin : la phase 0 qui a fonctionne est la v3 (rampe douce),
+# ecrite dans etape3_latent_p0_v3. Les runs effondres sont archives sous
+# *_effondre_* et ne doivent jamais servir de point de depart.
+resume_from: /workspace/runs/etape3_latent_p0_v3/checkpoint.pth
+resume_optimizer_state: false
+
+dataset:
+    train_dir: /workspace/corpus-train512/train/toutes
+    val_dir: /workspace/corpus-train512/val/toutes
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+embedder_model: unet_bottleneck
+autoencoder: MaskgitVqgan
+latent_layer: input_after_quantize
+scaling_w: 0.8
+scaling_w_schedule: Constant,scaling_min=0.8,epochs=150
+seed: 0
+batch_size_eval: 8
+batch_size: 16
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+attenuation: null
+ae_quantize: true
+scaling_i: 1.0
+videowam_step_size: 8
+num_augs: 2
+augmentation_config: configs/augmentation/all_augs_v3.yaml
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.2
+lambda_i: 0.5
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 20
+# 150 et non 400 : mesure du 2026-08-30, 383 s par epoque sur ce pod, soit
+# 41 h pour 400 epoques. Les augmentations all_augs_v3 et le discriminateur
+# triplent le cout par rapport a la phase 0 (120 s), et la machine partagee
+# affiche une charge de 400 sur 255 coeurs. Le chargeur n'y est pour rien --
+# mesure data: 0,00027 s d'attente par iteration, soit 0,02 % du temps : plus
+# de workers n'apporterait rien.
+#
+# 150 laisse 130 epoques au discriminateur (actif a l'epoque 20) pour faire
+# remonter le PSNR, ce qui suffit a savoir si la fidelite est recuperable. Si
+# la courbe monte encore a 150, on prolongera en connaissance de cause.
+epochs: 150
+iter_per_epoch: 200
+eval_freq: 10
+saveimg_freq: 50
+iter_per_valid: 10
+scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=150,warmup_lr_init=1e-8,warmup_t=10
+optimizer: AdamW,lr=2e-4
+full_eval_freq: 50
+finetune_detector_start: 2000
+# 16 et non 8 : le pod offre 255 coeurs, et ce sont les augmentations
+# (JPEG, recadrage, flou) qui preparent les lots sur CPU -- avec trop peu
+# de processus, le GPU attend ses donnees. On reste loin du maximum, la
+# machine etant partagee entre locataires. Ce reglage ne touche QUE le
+# chargement : contrairement a la taille de lot, il ne modifie aucun
+# resultat d'entrainement.
+workers: 16
