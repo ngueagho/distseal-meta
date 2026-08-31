@@ -32,5 +32,8 @@ while true; do
             --min-age 3m --stats-one-line >> "$J" 2>&1 \
         && echo "[sauve $(date +%H:%M)] ${CIBLE[$d]}" >> "$J"
     done
-    sleep 1200
+    # 6 min et non 20 : demande de Roberto le 2026-08-31. Le cout est nul
+    # (rclone ne transfere que ce qui a change) et la fenetre d'exposition
+    # entre une ecriture de checkpoint et sa copie tombe d'autant.
+    sleep 360
 done
