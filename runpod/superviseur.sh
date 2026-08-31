@@ -39,14 +39,17 @@ log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$J"; }
 etape_config()  { case "$1" in
   phaseF)   echo "$C/phaseF_reprise_corpus_disjoint.yaml";;
   e3a_p0)   echo "$C/etape3_latent_phase0_solo.yaml";;
-  e3a_p1)   echo "$C/etape3_latent_phase1.yaml";;
+  # v2 : lambda_i 0,5 et scaling_w 0,8. La v1, qui restaurait la recette de
+  # DistSeal telle quelle (lambda_i 0), detruisait l'image -- 8,21 dB, 95,7 %
+  # des pixels modifies. Elle est archivee sous etape3_p1_v1_distseal_psnr8.
+  e3a_p1)   echo "$C/etape3_latent_phase1_fidelite.yaml";;
   e3b_p0)   echo "$C/etape3b_latent_diffusion_phase0.yaml";;
   e3b_p1)   echo "$C/etape3b_latent_phase1.yaml";;
 esac; }
 etape_journal() { case "$1" in
   phaseF)   echo "/workspace/logs/phaseF_reprise.log";;
   e3a_p0)   echo "/workspace/logs/etape3_p0_solo.log";;
-  e3a_p1)   echo "/workspace/logs/etape3_p1.log";;
+  e3a_p1)   echo "/workspace/logs/etape3_p1_fidelite.log";;
   e3b_p0)   echo "/workspace/logs/etape3b_p0.log";;
   e3b_p1)   echo "/workspace/logs/etape3b_p1.log";;
 esac; }
@@ -82,7 +85,19 @@ terminee() {
   [ -f "$jrn" ] || return 1
   case "$e" in
     phaseF) grep -aq "max steps 60000 reached" "$jrn";;
-    *)      grep -aq "Epoch: \[199/200\]\|Epoch: \[399/400\]" "$jrn";;
+    # Motif generique : derniere epoque atteinte, quel que soit le total.
+    # Un motif code en dur (199/200, 399/400) casse des qu'on change le
+    # nombre d'epoques -- l'etape ne serait jamais declaree terminee et le
+    # superviseur resterait bloque dessus.
+    # Motif generique : derniere epoque atteinte, quel que soit le total.
+    # Avec -F'[][/]', les champs sont 2 (courante) et 3 (total) -- une erreur
+    # d'indice ici declarerait toute etape terminee des la premiere epoque.
+    # END{} et non une action de ligne : sans cela, un journal VIDE ne declenche
+    # aucune action, awk sort avec 0, et une etape jamais commencee serait
+    # declaree terminee -- le superviseur la sauterait.
+    *)      grep -aoE "Epoch: \[[0-9]+/[0-9]+\]" "$jrn" 2>/dev/null | tail -1 \
+            | awk -F'[][/]' 'NF>=3 && $3+0>0 {c=$2+0; t=$3+0}
+                             END {exit !(t>0 && c >= t-1)}';;
   esac
 }
 

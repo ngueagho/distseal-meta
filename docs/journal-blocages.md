@@ -817,3 +817,70 @@ gradient dans `train.py`, changement de code assumé.
 La leçon de méthode : trois corrections d'hyperparamètres successives sans
 examiner l'état interne du modèle. **Un checkpoint effondré se lit** — les
 running_var y racontaient tout depuis le premier échec.
+
+## 2026-08-31 — `torch_fidelity` manquant : le preflight ne sondait que deux chaines sur trois
+
+**Symptome.** La chaine crypto sur GPU echoue avant toute generation :
+`ModuleNotFoundError: No module named 'torch_fidelity'`, leve depuis
+`deps/efficientvit/apps/metrics/inception_score/inception_score.py`.
+
+**Cause.** Le preflight resout les imports de `distill.py` (via le trainer) et
+de `train.py` (via `--help`). Mais `diffusion_model_zoo` est une **troisieme**
+chaine : elle tire `torch_fidelity` par `inception_score`, ce que ni l'une ni
+l'autre ne fait. Apres une eviction, le paquet n'etait donc pas reinstalle.
+
+**Ce que ca revele.** Le preflight etait pense pour les entrainements seuls.
+Les scripts d'evaluation ont leurs propres dependances, et rien ne les
+couvrait -- c'est la troisieme fois que ce script s'avere incomplet.
+
+**Correctif.** Une troisieme sonde dans `runpod/preflight.py` :
+`resous("diffusion_model_zoo", lambda: sonde_module("deps.efficientvit.diffusion_model_zoo"))`.
+Verifie : les trois chaines resolvent en 0 installation.
+
+**Lecon.** Une sonde par point d'entree, pas une par famille de scripts. Deux
+points d'entree qui partagent 90 % de leurs imports different quand meme par
+les 10 % restants, et c'est toujours dans ces 10 % que ca casse.
+
+## 2026-08-31 — La phase 1 latente detruisait l'image, et c'etait la recette de DistSeal
+
+**Symptome.** bit_acc en hausse (0,88 a l'epoque 89) mais PSNR en baisse
+continue, 11,1 -> 9,64. L'inverse du but recherche.
+
+**Mesure, et non supposition.** Lecture directe des images de validation :
+PSNR image marquee vs originale **8,21 dB**, quand l'autoencodeur seul rend
+17,75 dB. Le tatouage coute donc 9,5 dB, plus que la reconstruction. Residu
+moyen 0,307 sur une echelle 0-1, saturant a 1,000 ; **95,7 %** des pixels
+modifies de plus de 5 %. SSIM 0,27. Ce n'est pas un filigrane, c'est une
+reecriture.
+
+**Cause.** La phase 1 restaure la recette de DistSeal, dont `lambda_i` vaut 0 :
+aucune contrainte de fidelite perceptuelle. Face a `lambda_dec: 1.0`, seul le
+discriminateur a 0,1 pousse a la qualite, dix fois plus faiblement. Le modele
+maximise donc la lecture en ecrasant l'image.
+
+**Ma part.** La phase 0 avait neutralise ce mecanisme (`scaling_w` 0,5,
+`lambda_i` 0,1) ; j'ai laisse la phase 1 revenir aux valeurs de DistSeal sans
+anticiper que la fidelite rechuterait avec.
+
+**Correctif.** `etape3_latent_phase1_fidelite.yaml` : `lambda_i` 0,5,
+`lambda_d` 0,2, `scaling_w` 0,8 (mesure : la perturbation passe de 1,1 a 0,42
+fois l'ecart-type du latent), calendrier constant au lieu du cosinus dont la
+rampe ne descendait qu'a partir de l'epoque 100, jamais atteinte a 150.
+
+**Effet, des les premieres epoques.**
+
+| epoque | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| PSNR v2 | 15,17 | 14,96 | 15,72 | **16,06** |
+| PSNR v1 | 11,68 | 11,25 | 10,82 | 10,89 |
+| SSIM v2 | 0,411 | 0,468 | 0,503 | **0,495** |
+| SSIM v1 | 0,259 | 0,263 | 0,275 | 0,277 |
+
+Le SSIM double : c'est la structure de l'image qui revient, pas seulement
+l'erreur moyenne qui baisse. La v1 est archivee sous
+`etape3_p1_v1_distseal_psnr8` -- elle documente ce que la recette de DistSeal
+donne a notre echelle, et le memoire peut citer les deux courbes.
+
+**Lecon.** Reprendre une recette telle quelle est defendable ; supposer qu'elle
+se transporte a une autre echelle ne l'est pas. `lambda_i: 0` suppose un
+contexte qui absorbe la degradation -- 601 000 pas chez eux, 30 000 chez nous.

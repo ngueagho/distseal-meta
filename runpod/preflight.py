@@ -83,6 +83,13 @@ def main() -> int:
     resous("distill.py", lambda: sonde_module("deps.efficientvit.aecore.trainer"))
     # train.py : phases A, B, H et etape 3 -- chaine d'imports differente
     resous("train.py", lambda: sonde_script(["train.py", "--help"]))
+    # Le zoo de diffusion : encore une troisieme chaine. Il tire
+    # torch_fidelity via inception_score, ce que ni distill.py ni train.py ne
+    # font -- la chaine crypto a echoue dessus apres une eviction, le
+    # 2026-08-31. Les scripts d'evaluation en dependent autant que les
+    # entrainements.
+    resous("diffusion_model_zoo",
+           lambda: sonde_module("deps.efficientvit.diffusion_model_zoo"))
     return 0
 
 

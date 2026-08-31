@@ -18,7 +18,10 @@ declare -A CIBLE=(
   [phaseF_maskgit]="phaseF_maskgit"
   [phaseD512_degele]="phaseD512-degele-decodeur-a-512px"
   [etape3_latent_p0_v3]="etape3a-embedder-latent-phase0"
-  [etape3_latent_phase1]="etape3a-embedder-latent-phase1-fidelite"
+  [etape3_latent_p1_fidelite]="etape3a-embedder-latent-phase1-fidelite"
+  [etape3_p1_v1_distseal_psnr8]="etape3a-phase1-v1-recette-distseal-psnr8"
+  [chaine_crypto]="chaine-crypto-6-classes"
+  [chaine_crypto_100]="chaine-crypto-100-classes"
   [etape3b_latent_diffusion_phase0]="etape3b-embedder-latent-diffusion-phase0"
   [etape3b_latent_p1]="etape3b-embedder-latent-diffusion-phase1"
 )
