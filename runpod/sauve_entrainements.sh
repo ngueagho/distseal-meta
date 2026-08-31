@@ -25,7 +25,11 @@ declare -A CIBLE=(
   # La campagne de cloture : les deux volets a 20 000 images. C'est le
   # resultat final du memoire -- il ne doit exister nulle part ailleurs
   # que sur un disque spot.
-  [cloture]="campagne-cloture-20k"
+  # Les bilans d'evaluation ne s'appellent pas results.json : sans les trois
+  # motifs ajoutes ci-dessous, la campagne de cloture a tourne 3 h sans qu'un
+  # seul de ses resultats ne parte sur Drive. Verifie le 2026-08-31 juste
+  # avant d'arreter le pod -- de justesse.
+  [cloture]="campagne-cloture"
   [etape3b_latent_diffusion_phase0]="etape3b-embedder-latent-diffusion-phase0"
   [etape3b_latent_p1]="etape3b-embedder-latent-diffusion-phase1"
 )
@@ -36,6 +40,7 @@ while true; do
             "gdrive_local:ciphermark/06-entrainements-en-cours-non-termines/${CIBLE[$d]}" \
             --include "checkpoint.pt*" --include "checkpoint.pth" \
             --include "log.txt" --include "results.json" --include "config.yaml" \
+            --include "*.json" --include "*.sqlite" --include "etapes_faites" \
             --min-age 3m --stats-one-line >> "$J" 2>&1 \
         && echo "[sauve $(date +%H:%M)] ${CIBLE[$d]}" >> "$J"
     done

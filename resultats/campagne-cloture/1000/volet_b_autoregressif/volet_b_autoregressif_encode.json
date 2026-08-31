@@ -1,0 +1,233 @@
+{
+ "famille": "autoregressif",
+ "source": "encode",
+ "n_traitements": 1000,
+ "n_distinctes": 12025,
+ "nbits": 64,
+ "tau": 69,
+ "duree_s": 132.4965078830719,
+ "utilisateur": "createur-0042",
+ "conditions": [
+  {
+   "attaque": "aucune",
+   "n": 1000,
+   "bit_acc": 0.87784375,
+   "err_moy": 7.818,
+   "err_max": 21,
+   "verdicts": 969,
+   "taux_verdict": 0.969,
+   "d_hash_moy": 0.0,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "jpeg_q90",
+   "n": 1000,
+   "bit_acc": 0.8168124999999999,
+   "err_moy": 11.724,
+   "err_max": 25,
+   "verdicts": 731,
+   "taux_verdict": 0.731,
+   "d_hash_moy": 18.124,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "jpeg_q70",
+   "n": 1000,
+   "bit_acc": 0.798109375,
+   "err_moy": 12.921,
+   "err_max": 26,
+   "verdicts": 602,
+   "taux_verdict": 0.602,
+   "d_hash_moy": 27.444,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "jpeg_q50",
+   "n": 1000,
+   "bit_acc": 0.78265625,
+   "err_moy": 13.91,
+   "err_max": 24,
+   "verdicts": 477,
+   "taux_verdict": 0.477,
+   "d_hash_moy": 33.627,
+   "hash_dans_tau": 0.999
+  },
+  {
+   "attaque": "jpeg_q30",
+   "n": 1000,
+   "bit_acc": 0.745484375,
+   "err_moy": 16.289,
+   "err_max": 26,
+   "verdicts": 200,
+   "taux_verdict": 0.2,
+   "d_hash_moy": 41.429,
+   "hash_dans_tau": 0.995
+  },
+  {
+   "attaque": "flou_k3",
+   "n": 1000,
+   "bit_acc": 0.704546875,
+   "err_moy": 18.909,
+   "err_max": 31,
+   "verdicts": 58,
+   "taux_verdict": 0.058,
+   "d_hash_moy": 20.371,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "flou_k5",
+   "n": 1000,
+   "bit_acc": 0.6033593749999999,
+   "err_moy": 25.385,
+   "err_max": 37,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 26.484,
+   "hash_dans_tau": 0.999
+  },
+  {
+   "attaque": "flou_k7",
+   "n": 1000,
+   "bit_acc": 0.54553125,
+   "err_moy": 29.086,
+   "err_max": 41,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 30.603,
+   "hash_dans_tau": 0.999
+  },
+  {
+   "attaque": "resize_0.75",
+   "n": 1000,
+   "bit_acc": 0.6915312499999999,
+   "err_moy": 19.742,
+   "err_max": 32,
+   "verdicts": 32,
+   "taux_verdict": 0.032,
+   "d_hash_moy": 19.938,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "resize_0.5",
+   "n": 1000,
+   "bit_acc": 0.5620625,
+   "err_moy": 28.028,
+   "err_max": 41,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 30.684,
+   "hash_dans_tau": 0.999
+  },
+  {
+   "attaque": "crop_0.9",
+   "n": 1000,
+   "bit_acc": 0.544078125,
+   "err_moy": 29.179,
+   "err_max": 43,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 37.159,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "crop_0.7",
+   "n": 1000,
+   "bit_acc": 0.5193281249999999,
+   "err_moy": 30.763,
+   "err_max": 44,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 53.635,
+   "hash_dans_tau": 0.917
+  },
+  {
+   "attaque": "crop_0.5",
+   "n": 1000,
+   "bit_acc": 0.50065625,
+   "err_moy": 31.958,
+   "err_max": 44,
+   "verdicts": 0,
+   "taux_verdict": 0.0,
+   "d_hash_moy": 74.701,
+   "hash_dans_tau": 0.373
+  },
+  {
+   "attaque": "lumin_0.8",
+   "n": 1000,
+   "bit_acc": 0.810109375,
+   "err_moy": 12.153,
+   "err_max": 24,
+   "verdicts": 670,
+   "taux_verdict": 0.67,
+   "d_hash_moy": 4.761,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "lumin_1.2",
+   "n": 1000,
+   "bit_acc": 0.8276718750000001,
+   "err_moy": 11.029,
+   "err_max": 33,
+   "verdicts": 783,
+   "taux_verdict": 0.783,
+   "d_hash_moy": 10.422,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "contraste_0.8",
+   "n": 1000,
+   "bit_acc": 0.80409375,
+   "err_moy": 12.538,
+   "err_max": 23,
+   "verdicts": 626,
+   "taux_verdict": 0.626,
+   "d_hash_moy": 5.048,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "contraste_1.2",
+   "n": 1000,
+   "bit_acc": 0.852953125,
+   "err_moy": 9.411,
+   "err_max": 22,
+   "verdicts": 913,
+   "taux_verdict": 0.913,
+   "d_hash_moy": 7.334,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "bruit_std0.02",
+   "n": 1000,
+   "bit_acc": 0.873109375,
+   "err_moy": 8.121,
+   "err_max": 20,
+   "verdicts": 958,
+   "taux_verdict": 0.958,
+   "d_hash_moy": 15.768,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "bruit_std0.05",
+   "n": 1000,
+   "bit_acc": 0.8401875,
+   "err_moy": 10.228,
+   "err_max": 21,
+   "verdicts": 845,
+   "taux_verdict": 0.845,
+   "d_hash_moy": 33.625,
+   "hash_dans_tau": 1.0
+  },
+  {
+   "attaque": "bruit_std0.1",
+   "n": 1000,
+   "bit_acc": 0.742140625,
+   "err_moy": 16.503,
+   "err_max": 30,
+   "verdicts": 203,
+   "taux_verdict": 0.203,
+   "d_hash_moy": 49.627,
+   "hash_dans_tau": 0.959
+  }
+ ],
+ "detail": []
+}

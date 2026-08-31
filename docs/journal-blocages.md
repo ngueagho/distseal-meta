@@ -922,3 +922,33 @@ Verifie : la sonde rend `eval=1 sauve=1 libre=21 age=2 fin=0`.
 a ignorer ses alertes. Et une surveillance doit distinguer trois etats, non
 deux -- « en bonne sante », « en panne », et « je n'ai pas pu mesurer ». Les
 confondre transforme chaque hoquet de la sonde en fausse alerte.
+
+## 2026-08-31 — La sauvegarde Drive ne copiait aucun resultat d'evaluation
+
+**Symptome.** Aucun. C'est ce qui rend ce blocage instructif : le journal
+affichait `[sauve 17:04] ...` toutes les six minutes, la veille rapportait une
+sauvegarde saine, et le dossier `cloture` figurait bien dans la liste des
+cibles. Tout indiquait que la campagne etait sauvegardee.
+
+**Ce qui se passait vraiment.** `rclone copy` etait appele avec cinq filtres
+`--include` : `checkpoint.pt*`, `checkpoint.pth`, `log.txt`, `results.json`,
+`config.yaml`. Les bilans de la campagne s'appellent `volet_a_pixel.json`,
+`volet_b_diffusion_encode.json`, `registre.sqlite` -- aucun ne correspond.
+Trois heures de calcul n'existaient donc que sur un disque spot, et j'allais
+arreter le pod.
+
+**Comment ca a ete vu.** En verifiant, avant l'arret, que la copie etait
+complete. Le premier `rclone copy` manuel a echoue sur un nom de remote errone
+(`gdrive:` au lieu de `gdrive_local:`), ce qui m'a fait ouvrir le script de
+sauvegarde -- et decouvrir les filtres.
+
+**Correctif.** Ajout de `--include "*.json"`, `--include "*.sqlite"` et
+`--include "etapes_faites"`. Le nom de cible passe de `campagne-cloture-20k` a
+`campagne-cloture` : l'echelle a change trois fois dans la journee, l'inscrire
+dans un chemin etait une erreur.
+
+**Lecon.** Une sauvegarde qui rapporte son succes ne prouve que l'execution de
+la commande, jamais la presence des donnees. La veille surveillait la vitalite
+du script et l'age du journal -- deux choses vraies pendant que rien n'etait
+copie. Ce qu'il faut verifier est le CONTENU cote destination, et le seul
+moment ou on le fait vraiment est avant de detruire la source.

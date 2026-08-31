@@ -1,0 +1,53 @@
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[volet-B] 13:58:16 extracteur : 64 bits, entraine en 256 px
+[volet-B] 13:58:18 autoregressif : 256 px, latent (1, 256, 16, 16)
+[distseal] 13:58:18 etages conditionnables : [512, 128, 3]
+[distseal] 13:58:18 conditionneur charge : 12 tenseurs, pas 60000
+[distseal] 13:58:18 decodeur affine restaure : 88/88 tenseurs modifies
+[volet-B] 13:58:18 20 conditions : aucune, jpeg_q90, jpeg_q70, jpeg_q50, jpeg_q30, flou_k3, flou_k5, flou_k7, resize_0.75, resize_0.5, crop_0.9, crop_0.7, crop_0.5, lumin_0.8, lumin_1.2, contraste_0.8, contraste_1.2, bruit_std0.02, bruit_std0.05, bruit_std0.1
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+[distseal] 13:58:21 protocole crypto : cle derivee de "createur-0042", hash DINOv2 256 bits, tau=69, registre /workspace/runs/cloture/volet_b_autoregressif/registre.sqlite
+[volet-B] 13:58:21 1000 traitements sur 12025 images distinctes
+[volet-B] 13:58:24   16/1000  6.4 img/s  reste ~3 min
+[volet-B] 13:59:10   336/1000  6.9 img/s  reste ~2 min
+[volet-B] 13:59:49   656/1000  7.5 img/s  reste ~1 min
+[volet-B] 14:00:31   976/1000  7.5 img/s  reste ~0 min
+[volet-B] 14:00:34   1000/1000  7.5 img/s  reste ~0 min
+
+======================================================================================
+VOLET B -- decodeur conditionne, famille autoregressif, source encode
+======================================================================================
+attaque                      n   bit_acc  err moy   verdicts  hash<=tau
+--------------------------------------------------------------------------------------
+aucune                    1000    0.8778     7.82     96.9%     100.0%
+jpeg_q90                  1000    0.8168    11.72     73.1%     100.0%
+jpeg_q70                  1000    0.7981    12.92     60.2%     100.0%
+jpeg_q50                  1000    0.7827    13.91     47.7%      99.9%
+jpeg_q30                  1000    0.7455    16.29     20.0%      99.5%
+flou_k3                   1000    0.7045    18.91      5.8%     100.0%
+flou_k5                   1000    0.6034    25.39      0.0%      99.9%
+flou_k7                   1000    0.5455    29.09      0.0%      99.9%
+resize_0.75               1000    0.6915    19.74      3.2%     100.0%
+resize_0.5                1000    0.5621    28.03      0.0%      99.9%
+crop_0.9                  1000    0.5441    29.18      0.0%     100.0%
+crop_0.7                  1000    0.5193    30.76      0.0%      91.7%
+crop_0.5                  1000    0.5007    31.96      0.0%      37.3%
+lumin_0.8                 1000    0.8101    12.15     67.0%     100.0%
+lumin_1.2                 1000    0.8277    11.03     78.3%     100.0%
+contraste_0.8             1000    0.8041    12.54     62.6%     100.0%
+contraste_1.2             1000    0.8530     9.41     91.3%     100.0%
+bruit_std0.02             1000    0.8731     8.12     95.8%     100.0%
+bruit_std0.05             1000    0.8402    10.23     84.5%     100.0%
+bruit_std0.1              1000    0.7421    16.50     20.3%      95.9%
+--------------------------------------------------------------------------------------
+  1000 traitements sur 12025 images distinctes, 20 conditions, 2.2 min
+  registre : /workspace/runs/cloture/volet_b_autoregressif/registre.sqlite
+======================================================================================
+[volet-B] 14:00:34 bilan ecrit dans /workspace/runs/cloture/volet_b_autoregressif/volet_b_autoregressif_encode.json

@@ -1,0 +1,67 @@
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[volet-B] 17:01:22 extracteur : 64 bits, entraine en 256 px
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+warning: dist not init
+0
+len(val_dataset)=50000
+len(test_dataset)=50000
+/workspace/code-memoire/deps/efficientvit/diffusioncore/models/uvit.py:249: RuntimeWarning: divide by zero encountered in divide
+  self.snr = self.cum_alphas / self.cum_betas
+[volet-B] 17:01:54 diffusion : 512 px, latent (1, 128, 8, 8)
+[distseal] 17:01:54 etages conditionnables : [2048, 1024, 1024, 512, 512, 256]
+[distseal] 17:02:01 conditionneur charge : 18 tenseurs, pas 20000
+[distseal] 17:02:01 decodeur affine restaure : 224/224 tenseurs modifies
+[volet-B] 17:02:01 20 conditions : aucune, jpeg_q90, jpeg_q70, jpeg_q50, jpeg_q30, flou_k3, flou_k5, flou_k7, resize_0.75, resize_0.5, crop_0.9, crop_0.7, crop_0.5, lumin_0.8, lumin_1.2, contraste_0.8, contraste_1.2, bruit_std0.02, bruit_std0.05, bruit_std0.1
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+[distseal] 17:02:04 protocole crypto : cle derivee de "createur-0042", hash DINOv2 256 bits, tau=69, registre /workspace/runs/cloture/volet_b_diffusion_generee/registre.sqlite
+[volet-B] 17:02:04 1000 traitements sur 12025 images distinctes
+/usr/local/lib/python3.12/dist-packages/torch/_dynamo/eval_frame.py:929: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. In version 2.5 we will raise an exception if use_reentrant is not passed. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+/usr/local/lib/python3.12/dist-packages/torch/utils/checkpoint.py:85: UserWarning: None of the inputs have requires_grad=True. Gradients will be None
+  warnings.warn(
+[volet-B] 17:02:08   8/1000  1.6 img/s  reste ~10 min
+[volet-B] 17:03:49   168/1000  1.6 img/s  reste ~9 min
+[volet-B] 17:05:40   328/1000  1.5 img/s  reste ~7 min
+[volet-B] 17:07:23   488/1000  1.5 img/s  reste ~6 min
+[volet-B] 17:08:56   648/1000  1.6 img/s  reste ~4 min
+[volet-B] 17:10:28   808/1000  1.6 img/s  reste ~2 min
+[volet-B] 17:11:55   968/1000  1.6 img/s  reste ~0 min
+[volet-B] 17:12:13   1000/1000  1.6 img/s  reste ~0 min
+
+======================================================================================
+VOLET B -- decodeur conditionne, famille diffusion, source genere
+======================================================================================
+attaque                      n   bit_acc  err moy   verdicts  hash<=tau
+--------------------------------------------------------------------------------------
+aucune                    1000    0.9744     1.64    100.0%     100.0%
+jpeg_q90                  1000    0.9699     1.92    100.0%     100.0%
+jpeg_q70                  1000    0.9685     2.01    100.0%     100.0%
+jpeg_q50                  1000    0.9679     2.05    100.0%     100.0%
+jpeg_q30                  1000    0.9657     2.20    100.0%     100.0%
+flou_k3                   1000    0.9657     2.19    100.0%     100.0%
+flou_k5                   1000    0.9409     3.78    100.0%     100.0%
+flou_k7                   1000    0.8962     6.64     99.4%     100.0%
+resize_0.75               1000    0.9619     2.44    100.0%     100.0%
+resize_0.5                1000    0.9199     5.13    100.0%     100.0%
+crop_0.9                  1000    0.5777    27.03      0.1%      99.8%
+crop_0.7                  1000    0.5254    30.37      0.0%      96.1%
+crop_0.5                  1000    0.4986    32.09      0.0%      62.1%
+lumin_0.8                 1000    0.9457     3.47    100.0%     100.0%
+lumin_1.2                 1000    0.9383     3.95     93.7%     100.0%
+contraste_0.8             1000    0.9402     3.83    100.0%     100.0%
+contraste_1.2             1000    0.9648     2.25     99.7%     100.0%
+bruit_std0.02             1000    0.9740     1.67    100.0%     100.0%
+bruit_std0.05             1000    0.9715     1.82    100.0%     100.0%
+bruit_std0.1              1000    0.9634     2.34    100.0%      99.8%
+--------------------------------------------------------------------------------------
+  1000 traitements sur 12025 images distinctes, 20 conditions, 10.2 min
+  registre : /workspace/runs/cloture/volet_b_diffusion_generee/registre.sqlite
+======================================================================================
+[volet-B] 17:12:13 bilan ecrit dans /workspace/runs/cloture/volet_b_diffusion_generee/volet_b_diffusion_genere.json

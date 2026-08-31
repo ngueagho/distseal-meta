@@ -1,0 +1,48 @@
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[eval] 13:24:52 device=cuda  checkpoint=/workspace/ckpt/base_64bits.pth
+[eval] 13:25:03 scaling_w rejoue a l'epoque 1200 : 0.5 (statique) -> 0.1152 (effectif)
+[eval] 13:25:04 Wam charge : nbits=64, img_size=256, scaling_w effectif=0.1152
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+[eval] 13:25:32 PHash backbone : DINOv2-small REEL
+[eval] 13:25:55 1000 traitements sur 12025 images distinctes depuis /workspace/corpus-eval-12k
+[eval] 13:25:55 20 conditions a evaluer
+[eval] 13:51:41 lot 10/10  0.6 img/s  reste ~0 min
+
+================================================================================================
+CipherMark -- recuperation sur 1000 images, nbits=64
+qualite du filigrane : PSNR 22.52 dB  SSIM 0.943  |  point fixe : 3.00 iters, 0% converges
+================================================================================================
+attaque           bit_acc  hash ok      BER    AUTH      p med
+------------------------------------------------------------------------------------------------
+aucune             0.9997    100%   0.0003   100%   5.42e-20
+jpeg_q90           0.9997     94%   0.0003    99%   5.42e-20
+jpeg_q70           0.9997     49%   0.0003    99%   5.42e-20
+jpeg_q50           0.9997     24%   0.0003    98%   5.42e-20
+jpeg_q30           0.9993      7%   0.0007    94%   5.42e-20
+flou_k3            0.9979     69%   0.0021    99%   5.42e-20
+flou_k5            0.9788     29%   0.0212    98%   3.52e-18
+flou_k7            0.9218     13%   0.0782    71%   4.50e-13
+resize_0.75        0.9961     59%   0.0039    99%   5.42e-20
+resize_0.5         0.9470     12%   0.0530    89%   2.37e-15
+crop_0.9           0.6345      7%   0.3655     0%   1.64e-02
+crop_0.7           0.5319      0%   0.4681     0%   3.54e-01
+crop_0.5           0.5044      0%   0.4956     0%   5.50e-01
+lumin_0.8          0.9995    100%   0.0005   100%   5.42e-20
+lumin_1.2          0.9820     90%   0.0180    94%   5.42e-20
+contraste_0.8      0.9993    100%   0.0007   100%   5.42e-20
+contraste_1.2      0.9973     95%   0.0027    99%   5.42e-20
+bruit_std0.02      0.9996     77%   0.0004    99%   5.42e-20
+bruit_std0.05      0.9995     14%   0.0005    96%   5.42e-20
+bruit_std0.1       0.9979      1%   0.0021    83%   5.42e-20
+================================================================================================
+bit_acc = fraction des bits d'Omega relus correctement
+hash ok = fraction des images dont le hash corrige redonne la reference
+BER     = ecart final au tag recalcule (c'est LUI qui decide du verdict)
+[eval] 13:51:41 resultats ecrits dans /workspace/runs/cloture/volet_a_pixel.json

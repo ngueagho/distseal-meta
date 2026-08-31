@@ -1,0 +1,47 @@
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+  distill.py : imports resolus apres 0 installation(s)
+  train.py : imports resolus apres 0 installation(s)
+  diffusion_model_zoo : imports resolus apres 0 installation(s)
+[08-31 11:38:26] campagne de cloture : N=20000, corpus /workspace/corpus-eval-12k, utilisateur createur-0042
+[08-31 11:38:26] volet_a_pixel demarre
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+  distill.py : imports resolus apres 0 installation(s)
+  train.py : imports resolus apres 0 installation(s)
+  diffusion_model_zoo : imports resolus apres 0 installation(s)
+[08-31 12:08:38] campagne de cloture : N=20000, corpus /workspace/corpus-eval-12k, utilisateur createur-0042
+[08-31 12:08:38] volet_a_pixel demarre
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+  distill.py : imports resolus apres 0 installation(s)
+  train.py : imports resolus apres 0 installation(s)
+  diffusion_model_zoo : imports resolus apres 0 installation(s)
+[08-31 13:04:21] campagne de cloture : N=10000, corpus /workspace/corpus-eval-12k, utilisateur createur-0042
+[08-31 13:04:21] volet_a_pixel demarre
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+  distill.py : imports resolus apres 0 installation(s)
+  train.py : imports resolus apres 0 installation(s)
+  diffusion_model_zoo : imports resolus apres 0 installation(s)
+[08-31 13:12:04] campagne de cloture : N=5000, corpus /workspace/corpus-eval-12k, utilisateur createur-0042
+[08-31 13:12:04] volet_a_pixel demarre
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+  distill.py : imports resolus apres 0 installation(s)
+  train.py : imports resolus apres 0 installation(s)
+  diffusion_model_zoo : imports resolus apres 0 installation(s)
+[08-31 13:24:38] campagne de cloture : N=1000, corpus /workspace/corpus-eval-12k, utilisateur createur-0042
+[08-31 13:24:38] volet_a_pixel demarre
+[08-31 13:51:45] volet_a_pixel termine en 27 min
+[08-31 13:51:45] volet_b_diffusion demarre
+[08-31 13:58:01] volet_b_diffusion termine en 6 min
+[08-31 13:58:01] volet_b_autoregressif demarre
+[08-31 14:00:38] volet_b_autoregressif termine en 2 min
+[08-31 14:00:38] volet_b_diffusion_generee demarre
+[08-31 14:16:00] volet_b_diffusion_generee termine en 15 min
+[08-31 14:16:00] CAMPAGNE TERMINEE -- bilans dans /workspace/runs/cloture
+  /workspace/runs/cloture/volet_a_pixel.json
+  /workspace/runs/cloture/volet_b_autoregressif/volet_b_autoregressif_encode.json
+  /workspace/runs/cloture/volet_b_diffusion/volet_b_diffusion_encode.json
+  /workspace/runs/cloture/volet_b_diffusion_generee/volet_b_diffusion_genere.json
