@@ -22,6 +22,10 @@ declare -A CIBLE=(
   [etape3_p1_v1_distseal_psnr8]="etape3a-phase1-v1-recette-distseal-psnr8"
   [chaine_crypto]="chaine-crypto-6-classes"
   [chaine_crypto_100]="chaine-crypto-100-classes"
+  # La campagne de cloture : les deux volets a 20 000 images. C'est le
+  # resultat final du memoire -- il ne doit exister nulle part ailleurs
+  # que sur un disque spot.
+  [cloture]="campagne-cloture-20k"
   [etape3b_latent_diffusion_phase0]="etape3b-embedder-latent-diffusion-phase0"
   [etape3b_latent_p1]="etape3b-embedder-latent-diffusion-phase1"
 )
