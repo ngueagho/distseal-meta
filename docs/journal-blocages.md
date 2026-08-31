@@ -884,3 +884,41 @@ donne a notre echelle, et le memoire peut citer les deux courbes.
 **Lecon.** Reprendre une recette telle quelle est defendable ; supposer qu'elle
 se transporte a une autre echelle ne l'est pas. `lambda_i: 0` suppose un
 contexte qui absorbe la degradation -- 601 000 pas chez eux, 30 000 chez nous.
+
+## 2026-08-31 — La veille criait au loup : un `eval` casse par du texte libre
+
+**Symptome.** La veille de la campagne de cloture annonce « AUCUNE EVALUATION
+EN COURS » et « SAUVEGARDE DRIVE ARRETEE » alors que les trois processus
+tournent normalement (verification directe : campagne 10 min, volet A 9 min,
+sauvegarde 9 min). Deux fois, dont une apres avoir ajoute une confirmation sur
+deux passages -- qui n'a donc rien confirme du tout.
+
+**Fausse piste.** J'ai d'abord cru a une course au demarrage : la veille aurait
+sonde entre la fin du preflight et le lancement de l'evaluation. C'etait
+plausible pour la premiere alerte, et j'ai ajoute la confirmation sur deux
+passages en consequence. La seconde alerte a invalide cette explication.
+
+**Cause reelle.** La sonde renvoyait une ligne unique :
+
+    SONDE eval=1 sauve=1 libre=21 age=2 fin=0 cours=[volet_a_pixel demarre] echec=[]
+
+que le client passe a `eval` apres avoir prefixe les cles. Le texte libre entre
+crochets contient des espaces et des crochets : `eval` echoue sur cette ligne
+**en bloc**, donc AUCUNE variable n'est definie, et chaque test `${S_x:-0}`
+retombe a zero. La veille conclut que tout est arrete -- exactement le contraire
+de ce que la sonde avait mesure.
+
+**Correctif.** Trois changements dans `veille_cloture.sh` :
+1. `SONDE` ne porte plus que des entiers ; `COURS` et `ECHEC` ont leurs propres
+   lignes prefixees, lues par `grep` et jamais par `eval` ;
+2. les variables sont `unset` avant l'`eval`, et si `S_eval` est vide apres,
+   la boucle passe son tour -- **ne rien savoir n'est pas constater un arret** ;
+3. la confirmation sur deux passages est conservee : elle reste utile pour les
+   transitions entre etapes, meme si elle n'etait pas la cause ici.
+
+Verifie : la sonde rend `eval=1 sauve=1 libre=21 age=2 fin=0`.
+
+**Lecon.** Un moniteur qui se trompe est pire qu'un moniteur absent : il apprend
+a ignorer ses alertes. Et une surveillance doit distinguer trois etats, non
+deux -- « en bonne sante », « en panne », et « je n'ai pas pu mesurer ». Les
+confondre transforme chaque hoquet de la sonde en fausse alerte.
