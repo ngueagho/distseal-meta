@@ -82,7 +82,19 @@ def replay_scaling(wam, cfg, ckpt_path):
         log(f"replay scaling_w IMPOSSIBLE ({exc!r}) -- resultats non fiables")
 
 
-def load_images(corpus, size, n, seed):
+def liste_fichiers(corpus, n, seed):
+    """Les chemins, pas les pixels.
+
+    L'ancienne version chargeait les n images en RAM d'un bloc et rendait un
+    seul tenseur. A 20 000 images cela fait 9,4 Go, la boucle d'allocation
+    prenait 20 minutes sans ecrire une ligne de journal, et rien ne disait ou
+    en etait le script. On rend desormais les chemins et on charge lot par lot.
+
+    Si n depasse le corpus, on repasse sur les memes images -- mais chacune
+    recoit un Omega different, donc ce sont bien n cas de test distincts. La
+    version precedente tronquait EN SILENCE : demander 20 000 sur un corpus de
+    12 025 en rendait 12 025 sans le dire.
+    """
     exts = (".png", ".jpg", ".jpeg")
     files = []
     for root, _, names in os.walk(corpus):
@@ -92,12 +104,23 @@ def load_images(corpus, size, n, seed):
     if not files:
         raise SystemExit(f"aucune image dans {corpus}")
     random.Random(seed).shuffle(files)
-    files = files[:n]
+    distinctes = len(files)
+    if n > distinctes:
+        k = (n + distinctes - 1) // distinctes
+        files = (files * k)[:n]
+        log(f"{n} traitements demandes sur {distinctes} images distinctes : "
+            f"chaque image repasse ~{k} fois, avec un Omega different a chaque fois")
+    return files[:n], distinctes
+
+
+def charge_lot(fichiers, size):
+    """Charge un lot en [0,1], directement sur le peripherique de calcul."""
     out = []
-    for f in files:
+    for f in fichiers:
         im = Image.open(f).convert("RGB").resize((size, size))
-        out.append(torch.from_numpy(np.asarray(im).astype(np.float32) / 255.).permute(2, 0, 1))
-    return torch.stack(out), files
+        out.append(torch.from_numpy(np.asarray(im).astype(np.float32) / 255.)
+                   .permute(2, 0, 1))
+    return torch.stack(out).to(DEVICE)
 
 
 def psnr_ssim(a, b):
@@ -182,8 +205,9 @@ def main() -> int:
     # hash decouple d'Omega (cf. CipherMarkConfig.hash_bits_min)
     phash = PerceptualHash(n_bits=HASH_BITS, backbone=dino or _DCTFallback()).to(DEVICE).eval()
 
-    imgs_all, files = load_images(args.corpus, img_size, args.n_images, args.seed)
-    log(f"{len(files)} images chargees depuis {args.corpus}")
+    files, distinctes = liste_fichiers(args.corpus, args.n_images, args.seed)
+    log(f"{len(files)} traitements sur {distinctes} images distinctes "
+        f"depuis {args.corpus}")
 
     attacks = [("aucune", lambda x: x)] if args.no_attacks else build_attacks()
     if args.conditions:
@@ -201,9 +225,10 @@ def main() -> int:
            for name, _ in attacks}
     psnr_all, ssim_all, iters_all, conv_all = [], [], [], []
 
-    nb = (len(imgs_all) + args.batch - 1) // args.batch
+    nb = (len(files) + args.batch - 1) // args.batch
+    t_debut = time.time()
     for bi in range(nb):
-        imgs = imgs_all[bi * args.batch:(bi + 1) * args.batch].to(DEVICE)
+        imgs = charge_lot(files[bi * args.batch:(bi + 1) * args.batch], img_size)
         registry = TraceRegistry()
         cm = CipherMarkWam(wam=wam, phash=phash, keys=keys, cfg=cm_cfg, registry=registry)
         out = cm.embed(imgs)
@@ -241,7 +266,11 @@ def main() -> int:
                     acc[name]["p"].append(r.p_value)
             except Exception as exc:
                 log(f"  attaque {name} en echec : {exc!r}")
-        log(f"lot {bi + 1}/{nb} traite")
+        if (bi + 1) % 10 == 0 or bi + 1 == nb:
+            ec = time.time() - t_debut
+            fait = (bi + 1) * args.batch
+            log(f"lot {bi + 1}/{nb}  {fait / max(ec, 1e-9):.1f} img/s  "
+                f"reste ~{ec / (bi + 1) * (nb - bi - 1) / 60:.0f} min")
 
     # ---------------------------------------------------------------- sortie
     print()

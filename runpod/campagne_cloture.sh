@@ -44,6 +44,11 @@ mkdir -p "$SORTIE" "$LOGS"
 touch "$ETAT"
 cd "$RACINE" || exit 1
 export PYTHONPATH=deps:.
+# 761 fils Python pour une boucle sequentielle : la sursouscription faisait
+# tomber le chargement a 9 images/s quand un processus seul en fait 7500. On
+# borne, sans etouffer les attaques qui, elles, profitent du parallelisme.
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-16}
+export MKL_NUM_THREADS=$OMP_NUM_THREADS
 
 journal() { echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOGS/cloture.log"; }
 
