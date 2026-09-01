@@ -14,8 +14,6 @@ Les chiffres ne sont **jamais saisis a la main** : ils sont lus depuis
 
 ## A completer avant la soutenance
 
-- `ENCADREUR` dans le script : « Dr HAMINOU » est une supposition tiree du
-  chemin du projet, a confirmer avec le nom complet et le titre exact.
 - La date de soutenance n'apparait pas sur les diapositives ; l'ajouter si
   l'usage de la faculte le demande.
 - Le meme champ est vide dans le memoire (`UPBMATH_def.tex` : `\defensedate`

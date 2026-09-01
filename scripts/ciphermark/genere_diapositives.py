@@ -28,7 +28,7 @@ SORTIE = os.path.join(RACINE, "soutenance")
 
 # --------------------------------------------------------------- identite ---
 AUTEUR = "NGUEAGHO TIODONG Roberto Landry"
-ENCADREUR = "Dr HAMINOU"          # a confirmer
+ENCADREUR = "Pr Aminou HALIDOU"
 ETABLISSEMENT = "Universite de Yaounde I  ·  Faculte des Sciences"
 DEPARTEMENT = "Departement d'Informatique  ·  Master 2"
 TITRE = ("Developpement d'un systeme de tatouage numerique securise\n"
