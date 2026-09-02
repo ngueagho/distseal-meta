@@ -90,7 +90,57 @@ def main() -> int:
     # entrainements.
     resous("diffusion_model_zoo",
            lambda: sonde_module("deps.efficientvit.diffusion_model_zoo"))
+    # Les scripts d'EVALUATION ont leur propre chaine, distincte des trois
+    # precedentes : le 2026-09-02, apres un redemarrage du pod, ils ont echoue
+    # successivement sur scipy, einops puis omegaconf, un par relance. Les
+    # sonder ici resout tout d'un coup.
+    for m in ("scripts.ciphermark.eval_recovery_robustness",
+              "scripts.ciphermark.eval_attaques_actives",
+              "scripts.ciphermark.eval_grande_echelle_decodeur",
+              "scripts.ciphermark.chaine_distseal_omega_variable"):
+        resous(m.rsplit(".", 1)[-1], lambda m=m: sonde_module(m))
+    return verifie_dependances_silencieuses()
+
+
+# ---------------------------------------------------------------------------
+# Trois paquets manquent SANS lever ModuleNotFoundError : le code intercepte
+# l'ImportError et la relance en RuntimeError. La boucle de resolution
+# ci-dessus, qui lit le nom du module absent dans l'exception, ne peut donc
+# rien en faire -- le 2026-09-02, reedsolo a fait echouer deux mesures apres
+# qu'un preflight « tout vert » soit passe. On les verifie par leur EFFET.
+# ---------------------------------------------------------------------------
+def verifie_dependances_silencieuses() -> int:
+    epreuves = [
+        ("reedsolo", "correction Reed-Solomon", _epreuve_rs),
+        ("pycryptodome", "ChaCha20", lambda: __import__("Crypto.Cipher.ChaCha20")),
+        ("huggingface_hub", "telechargement des poids", lambda: __import__("huggingface_hub")),
+    ]
+    manquants = []
+    for paquet, role, epreuve in epreuves:
+        try:
+            epreuve()
+            print(f"{paquet} : {role} operationnel")
+        except Exception as exc:
+            print(f"{paquet} : ECHEC ({type(exc).__name__}) -- installation")
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", paquet],
+                           check=False)
+            try:
+                epreuve()
+                print(f"{paquet} : operationnel apres installation")
+            except Exception as exc2:
+                print(f"{paquet} : TOUJOURS EN ECHEC ({type(exc2).__name__}: {exc2})")
+                manquants.append(paquet)
+    if manquants:
+        print(f"ATTENTION : {', '.join(manquants)} indisponible(s) -- les scripts "
+              f"qui en dependent echoueront en cours d'execution, pas a l'import.")
+        return 1
     return 0
+
+
+def _epreuve_rs():
+    """Exercer reellement la parite : l'import seul ne prouve rien."""
+    from distseal.ciphermark.phash import PerceptualHash, _DCTFallback
+    PerceptualHash(n_bits=256, backbone=_DCTFallback()).rs.parity(bytes(32))
 
 
 if __name__ == "__main__":
