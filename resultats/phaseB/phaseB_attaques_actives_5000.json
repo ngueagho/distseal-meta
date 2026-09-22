@@ -1,0 +1,74 @@
+{
+  "n_images": 5000,
+  "nbits": 64,
+  "resultats": [
+    {
+      "attaque": "reference_honnete",
+      "n": 5000,
+      "faux_authentic": 4982,
+      "ber_moyen": 0.000203125,
+      "verdicts": {
+        "no_wm": 18,
+        "authentic": 4982
+      },
+      "note": "doit etre 100 % AUTHENTIC -- sinon le reste n'a pas de sens"
+    },
+    {
+      "attaque": "A_transplantation",
+      "n": 5000,
+      "faux_authentic": 11,
+      "ber_moyen": 0.005128125,
+      "verdicts": {
+        "no_wm": 4989,
+        "authentic": 11
+      },
+      "note": "la dependance au contenu doit la rendre inoperante"
+    },
+    {
+      "attaque": "B_rejeu_autre_nonce",
+      "n": 5000,
+      "faux_authentic": 0,
+      "ber_moyen": 0.500078125,
+      "verdicts": {
+        "no_wm": 5000
+      },
+      "note": "le nonce fixe le keystream : un mauvais nonce doit echouer"
+    },
+    {
+      "attaque": "C_mixup",
+      "n": 5000,
+      "faux_authentic": 0,
+      "ber_moyen": 0.500625,
+      "verdicts": {
+        "no_wm": 5000
+      },
+      "note": "efficace contre les tatouages content-agnostiques"
+    },
+    {
+      "attaque": "D_collage_vu_par_A",
+      "n": 5000,
+      "faux_authentic": 14,
+      "ber_moyen": 0.2605125,
+      "verdicts": {
+        "heavy_edit": 2437,
+        "no_wm": 129,
+        "light_edit": 2420,
+        "authentic": 14
+      },
+      "note": "moyenne de deux identites"
+    },
+    {
+      "attaque": "D_collage_vu_par_B",
+      "n": 5000,
+      "faux_authentic": 14,
+      "ber_moyen": 0.26115,
+      "verdicts": {
+        "heavy_edit": 2477,
+        "no_wm": 112,
+        "light_edit": 2397,
+        "authentic": 14
+      },
+      "note": "moyenne de deux identites"
+    }
+  ]
+}

@@ -99,4 +99,10 @@ scheduler: CosineLRScheduler,lr_min=1e-6,t_initial=200,warmup_lr_init=1e-8,warmu
 optimizer: AdamW,lr=1e-4
 full_eval_freq: 50
 finetune_detector_start: 2000
-workers: 8
+# 16 et non 8 : le pod offre 255 coeurs, et ce sont les augmentations
+# (JPEG, recadrage, flou) qui preparent les lots sur CPU -- avec trop peu
+# de processus, le GPU attend ses donnees. On reste loin du maximum, la
+# machine etant partagee entre locataires. Ce reglage ne touche QUE le
+# chargement : contrairement a la taille de lot, il ne modifie aucun
+# resultat d'entrainement.
+workers: 16

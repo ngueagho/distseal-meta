@@ -1,0 +1,59 @@
+{
+  "n_images": 5000,
+  "nbits": 64,
+  "psnr": 21.5707950592041,
+  "ssim": 0.9298638701438904,
+  "fixed_point_iters": 3.0,
+  "resultats": [
+    {
+      "attaque": "aucune",
+      "bit_acc_omega": 0.9997156262397766,
+      "hash_stable": 1.0,
+      "ber": 0.000284375,
+      "taux_authentic": 0.9948,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "no_wm": 25,
+        "light_edit": 1,
+        "authentic": 4974
+      }
+    },
+    {
+      "attaque": "bruit_std0.02",
+      "bit_acc_omega": 0.9997156262397766,
+      "hash_stable": 0.9248,
+      "ber": 0.000284375,
+      "taux_authentic": 0.9942,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "no_wm": 29,
+        "authentic": 4971
+      }
+    },
+    {
+      "attaque": "bruit_std0.05",
+      "bit_acc_omega": 0.9996687769889832,
+      "hash_stable": 0.1654,
+      "ber": 0.00033125,
+      "taux_authentic": 0.9786,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "no_wm": 107,
+        "authentic": 4893
+      }
+    },
+    {
+      "attaque": "bruit_std0.1",
+      "bit_acc_omega": 0.9993593692779541,
+      "hash_stable": 0.0108,
+      "ber": 0.000640625,
+      "taux_authentic": 0.8818,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "no_wm": 590,
+        "light_edit": 1,
+        "authentic": 4409
+      }
+    }
+  ]
+}

@@ -27,8 +27,11 @@ RES = os.path.join(RACINE, "resultats", "campagne-cloture", "5000")
 SORTIE = os.path.join(RACINE, "soutenance")
 
 # --------------------------------------------------------------- identite ---
-AUTEUR = "NGUEAGHO TIODONG Roberto Landry"
-ENCADREUR = "Pr Aminou HALIDOU"
+# Noms de personnes en majuscules, et titre exact de l'encadreur :
+# maitre de conferences, non professeur.
+AUTEUR = "NGUEAGHO TIODONG ROBERTO LANDRY"
+ENCADREUR = "AMINOU HALIDOU"
+ENCADREUR_TITRE = "Maître de Conférences"
 ETABLISSEMENT = "Universite de Yaounde I  ·  Faculte des Sciences"
 DEPARTEMENT = "Departement d'Informatique  ·  Master 2"
 TITRE = ("Developpement d'un systeme de tatouage numerique securise\n"
@@ -217,6 +220,7 @@ def main() -> int:
     tf = zone(d, 7.1, 4.75, 5.2, 1.6)
     ecrit(tf, "Sous la direction de", 12, True, RGBColor(0xC9, 0xA2, 0x7A), CORPS_F, premier=True)
     ecrit(tf, ENCADREUR, 19, True, PAPIER, CORPS_F, espace_avant=4)
+    ecrit(tf, ENCADREUR_TITRE, 14, False, RGBColor(0x9A, 0xA4, 0xB0), CORPS_F)
     tf = zone(d, 1.1, 6.5, 11.2, 0.8)
     ecrit(tf, ETABLISSEMENT, 13, False, RGBColor(0x9A, 0xA4, 0xB0), CORPS_F, premier=True)
     ecrit(tf, DEPARTEMENT + "  ·  Annee 2025-2026", 13, False,

@@ -49,13 +49,15 @@ sys.path[:0] = [os.path.join(RACINE, "deps"), RACINE]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-from distseal.ciphermark.equation import binomial_pvalue          # noqa: E402
+from distseal.ciphermark.equation import (                        # noqa: E402
+    CipherMarkThresholds, binomial_pvalue)
 from distseal.ciphermark.witness import WitnessField              # noqa: E402
 from distseal.utils.cfg import (get_config_from_checkpoint,        # noqa: E402
                                 setup_model_from_checkpoint)
 from scripts.ciphermark.chaine_distseal_omega_variable import (    # noqa: E402
     ProtocoleCrypto, charge_conditionneur)
 from scripts.ciphermark.eval_recovery_robustness import build_attacks  # noqa: E402
+from distseal.utils.metrics import psnr as mesure_psnr, ssim as mesure_ssim  # noqa: E402
 
 
 def log(m):
@@ -162,6 +164,8 @@ def main() -> int:
     ap.add_argument("--out-dir", default="runs/volet_b")
     ap.add_argument("--journal-tous", type=int, default=0,
                     help="si >0, ecrit le detail des N premieres images")
+    ap.add_argument("--lpips", action="store_true",
+                    help="mesure aussi LPIPS (plus lent, peut charger VGG)")
     args = ap.parse_args()
 
     if not torch.cuda.is_available():
@@ -201,6 +205,16 @@ def main() -> int:
     log(f"{args.famille} : {taille} px, latent {tuple(sonde.shape)}")
 
     cond = charge_conditionneur(ae, ae.decoder, sonde, nbits, args.conditionneur)
+    n_params_conditionneur = cond.n_parametres()
+    n_params_decodeur = sum(p.numel() for p in ae.decoder.parameters())
+
+    lpips_modele = None
+    if args.lpips:
+        try:
+            import lpips
+            lpips_modele = lpips.LPIPS(net="vgg").to(DEVICE).eval()
+        except Exception as exc:
+            raise SystemExit(f"LPIPS demande mais indisponible : {exc}") from exc
 
     if args.source == "genere" and args.famille != "diffusion":
         raise SystemExit("--source genere n'existe que pour la diffusion : le "
@@ -222,12 +236,24 @@ def main() -> int:
     log(f"{len(fichiers)} traitements sur {distinctes} images distinctes")
 
     # ----------------------------------------------------- accumulateurs ----
-    # Une entree par attaque : erreurs cumulees, verdicts, distances de hash.
-    acc = {nom: {"err": 0, "n": 0, "verdicts": 0, "d_hash": 0, "hash_ok": 0,
-                 "err_max": 0} for nom, _ in attaques}
+    # Une entree par attaque. Trois decisions DIFFERENTES sont conservees :
+    #   detection_p    : p-valeur binomiale < 1e-6 (jusqu'a 13 erreurs / 64)
+    #   omega_ok       : seuil AUTHENTIC du verifieur (BER <= 10 %, 6/64)
+    #   authentic      : omega_ok ET hash_ok (le verdict complet CipherMark)
+    # L'ancien champ JSON `verdicts` est maintenu comme alias de detection_p
+    # pour ne pas casser les notebooks historiques, mais ne doit plus etre
+    # presente comme un verdict AUTHENTIC.
+    acc = {nom: {"err": 0, "n": 0, "detection_p": 0, "omega_ok": 0,
+                 "authentic": 0, "d_hash": 0, "hash_ok": 0, "err_max": 0}
+           for nom, _ in attaques}
+    seuil_authentic = CipherMarkThresholds().authentic
     detail = []
+    qualite = {"psnr": [], "ssim": [], "lpips": []}
+    temps_decode_nu = 0.0
+    temps_decode_waf = 0.0
     nonce = 0
     t_debut = time.time()
+    torch.cuda.reset_peak_memory_stats()
     dtype = (torch.bfloat16 if torch.cuda.get_device_capability(0)[0] >= 8
              else torch.float16)
     g = torch.Generator(device=DEVICE).manual_seed(args.seed)
@@ -254,9 +280,13 @@ def main() -> int:
                 infos_dec = tl
 
         # ---- 2. l'image NUE : c'est de son hash que nait Omega -------------
+        torch.cuda.synchronize()
+        t_decode = time.perf_counter()
         with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
             brut = ae.decode(latent) if infos_dec is None \
                 else ae.decode(latent, infos_dec)
+        torch.cuda.synchronize()
+        temps_decode_nu += time.perf_counter() - t_decode
         img_nu = ((brut.float() * 0.5 + 0.5) if args.famille == "diffusion"
                   else brut.float()).clamp(0, 1)
 
@@ -264,12 +294,28 @@ def main() -> int:
         omega, hs_base = proto.emettre_lot(img_nu, nonces)
 
         # ---- 3. le decodage CONDITIONNE : Omega module les poids -----------
+        torch.cuda.synchronize()
+        t_decode = time.perf_counter()
         with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
             with cond.omega(omega):
                 brut_w = ae.decode(latent) if infos_dec is None \
                     else ae.decode(latent, infos_dec)
+        torch.cuda.synchronize()
+        temps_decode_waf += time.perf_counter() - t_decode
         img_w = ((brut_w.float() * 0.5 + 0.5) if args.famille == "diffusion"
                  else brut_w.float()).clamp(0, 1)
+
+        # Qualite appariee : meme latent, avec et sans conditionnement WAF.
+        # Ces mesures isolent l'effet du temoin de la variabilite du generateur.
+        with torch.no_grad():
+            qualite["psnr"].extend(
+                mesure_psnr(img_w, img_nu).detach().cpu().tolist())
+            qualite["ssim"].extend(
+                mesure_ssim(img_w, img_nu).detach().cpu().tolist())
+            if lpips_modele is not None:
+                d_lpips = lpips_modele(img_w * 2 - 1, img_nu * 2 - 1)
+                qualite["lpips"].extend(
+                    d_lpips.detach().float().cpu().reshape(B).tolist())
 
         # ---- 4. la base de tracabilite ------------------------------------
         proto.enregistrer_lot(nonces, hs_base, img_w)
@@ -298,17 +344,29 @@ def main() -> int:
             a["n"] += B
             a["err"] += int(err.sum())
             a["err_max"] = max(a["err_max"], int(err.max()))
-            a["verdicts"] += int(sum(1 for e in err
-                                     if binomial_pvalue(int(e), nbits) < 1e-6))
             dh = [distance_hash(o, r) for o, r in zip(hs_obs, hs_ref)]
+            detection_p = np.asarray([
+                binomial_pvalue(int(e), nbits) < 1e-6 for e in err
+            ], dtype=bool)
+            omega_ok = (err / nbits) <= seuil_authentic
+            hash_ok = np.asarray([x <= proto.tau for x in dh], dtype=bool)
+            authentic = omega_ok & hash_ok
+            a["detection_p"] += int(detection_p.sum())
+            a["omega_ok"] += int(omega_ok.sum())
+            a["authentic"] += int(authentic.sum())
             a["d_hash"] += int(sum(dh))
-            a["hash_ok"] += int(sum(1 for x in dh if x <= proto.tau))
+            a["hash_ok"] += int(hash_ok.sum())
             if args.journal_tous and len(detail) < args.journal_tous:
                 for i in range(min(B, args.journal_tous - len(detail))):
                     detail.append({"nonce": nonces[i], "attaque": nom,
                                    "erreurs": int(err[i]),
                                    "p_valeur": binomial_pvalue(int(err[i]), nbits),
-                                   "d_hash": dh[i], "utilisateur": utilisateur})
+                                   "d_hash": dh[i],
+                                   "detection_p": bool(detection_p[i]),
+                                   "omega_accepte": bool(omega_ok[i]),
+                                   "hash_accepte": bool(hash_ok[i]),
+                                   "authentic": bool(authentic[i]),
+                                   "utilisateur": utilisateur})
 
         fait = min(d + args.batch, len(fichiers))
         if (d // args.batch) % 20 == 0 or fait == len(fichiers):
@@ -329,9 +387,19 @@ def main() -> int:
             "attaque": nom, "n": a["n"],
             "bit_acc": 1 - a["err"] / (a["n"] * nbits),
             "err_moy": a["err"] / a["n"], "err_max": a["err_max"],
-            "verdicts": a["verdicts"], "taux_verdict": a["verdicts"] / a["n"],
+            # Alias historiques : ils signifient detection statistique, pas
+            # verdict AUTHENTIC. Les nouveaux consommateurs doivent utiliser
+            # les champs explicites ci-dessous.
+            "verdicts": a["detection_p"],
+            "taux_verdict": a["detection_p"] / a["n"],
+            "detections_p": a["detection_p"],
+            "taux_detection_p": a["detection_p"] / a["n"],
+            "omega_acceptes": a["omega_ok"],
+            "taux_omega_accepte": a["omega_ok"] / a["n"],
             "d_hash_moy": a["d_hash"] / a["n"],
             "hash_dans_tau": a["hash_ok"] / a["n"],
+            "authentic": a["authentic"],
+            "taux_authentic": a["authentic"] / a["n"],
         })
 
     print()
@@ -340,25 +408,60 @@ def main() -> int:
           f"source {args.source}")
     print("=" * 86)
     print(f"{'attaque':<22}{'n':>8}{'bit_acc':>10}{'err moy':>9}"
-          f"{'verdicts':>11}{'hash<=tau':>11}")
+          f"{'p<1e-6':>10}{'Omega OK':>10}{'hash OK':>10}{'AUTH.':>10}")
     print("-" * 86)
     for r in lignes:
         print(f"{r['attaque']:<22}{r['n']:>8}{r['bit_acc']:>10.4f}"
-              f"{r['err_moy']:>9.2f}{r['taux_verdict']:>10.1%}"
-              f"{r['hash_dans_tau']:>11.1%}")
+              f"{r['err_moy']:>9.2f}{r['taux_detection_p']:>10.1%}"
+              f"{r['taux_omega_accepte']:>10.1%}"
+              f"{r['hash_dans_tau']:>10.1%}{r['taux_authentic']:>10.1%}")
     print("-" * 86)
     print(f"  {len(fichiers)} traitements sur {distinctes} images distinctes, "
           f"{len(attaques)} conditions, {duree / 60:.1f} min")
     print(f"  registre : {os.path.join(args.out_dir, 'registre.sqlite')}")
+    print(f"  qualite pairee : PSNR={np.mean(qualite['psnr']):.2f} dB, "
+          f"SSIM={np.mean(qualite['ssim']):.4f}" +
+          (f", LPIPS={np.mean(qualite['lpips']):.4f}"
+           if qualite["lpips"] else ""))
+    print(f"  decodage nu : {1000 * temps_decode_nu / len(fichiers):.2f} ms/image")
+    print(f"  decodage WAF: {1000 * temps_decode_waf / len(fichiers):.2f} ms/image")
     print("=" * 86)
 
     chemin = os.path.join(args.out_dir,
                           f"volet_b_{args.famille}_{args.source}.json")
+    def resume_distribution(valeurs):
+        if not valeurs:
+            return None
+        a = np.asarray(valeurs, dtype=np.float64)
+        return {"moyenne": float(a.mean()), "mediane": float(np.median(a)),
+                "ecart_type": float(a.std()), "minimum": float(a.min()),
+                "maximum": float(a.max()), "n": int(a.size)}
+
+    bilan_qualite = {
+        "reference": "meme latent decode sans Omega",
+        "psnr_db": resume_distribution(qualite["psnr"]),
+        "ssim": resume_distribution(qualite["ssim"]),
+        "lpips_vgg": resume_distribution(qualite["lpips"]),
+    }
+    performance = {
+        "decodeur_parametres": n_params_decodeur,
+        "conditionneur_parametres": n_params_conditionneur,
+        "decode_nu_secondes": temps_decode_nu,
+        "decode_waf_secondes": temps_decode_waf,
+        "decode_nu_ms_par_image": 1000 * temps_decode_nu / len(fichiers),
+        "decode_waf_ms_par_image": 1000 * temps_decode_waf / len(fichiers),
+        "surcout_waf_ms_par_image":
+            1000 * (temps_decode_waf - temps_decode_nu) / len(fichiers),
+        "pic_memoire_gpu_octets": int(torch.cuda.max_memory_allocated()),
+    }
+
     with open(chemin, "w") as f:
         json.dump({"famille": args.famille, "source": args.source,
                    "n_traitements": len(fichiers), "n_distinctes": distinctes,
                    "nbits": nbits, "tau": proto.tau, "duree_s": duree,
                    "utilisateur": args.user_id,
+                   "qualite_pairee": bilan_qualite,
+                   "performance": performance,
                    "conditions": lignes, "detail": detail}, f, indent=1)
     log(f"bilan ecrit dans {chemin}")
     return 0
