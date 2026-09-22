@@ -17,3 +17,7 @@ onnxruntime
 pycryptodome>=3.20.0
 reedsolo>=1.7.0
 scikit-image>=0.21.0
+
+# requis en cascade par deps/efficientvit (DCAE_Diffusion_HF -> evaluator ->
+# inception_score), meme quand seul le decodeur est utilise, pas les metriques
+torch-fidelity>=0.3.0
