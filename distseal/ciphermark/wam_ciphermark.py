@@ -283,15 +283,12 @@ class CipherMarkWam(nn.Module):
         h_ref = h_used if self.cfg.hamming_threshold > 0 else [None] * B
 
         # BD[nonce] <- (pi, h_ref, metadonnees). Le registre refuse un nonce deja vu.
-        for iid, pi, hr in zip(image_ids, parity, h_ref):
-            self.registry.put(
-                nonce=iid,
-                parity=pi,
-                n_bits=self.cfg.n_bits,
-                rs_nsym=self.phash.rs.nsym,
-                session=self.cfg.session,
-                h_ref=hr,
-            )
+        # Une transaction pour le batch : atomique, et sans un commit par image.
+        self.registry.put_many(
+            [(iid, pi, self.cfg.n_bits, self.phash.rs.nsym, hr)
+             for iid, pi, hr in zip(image_ids, parity, h_ref)],
+            session=self.cfg.session,
+        )
 
         return {
             "imgs_w": last_imgs_w,

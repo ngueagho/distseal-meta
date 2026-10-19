@@ -145,9 +145,42 @@ class TraceRegistry:
         self._conn.commit()
 
     def put_many(self, entries: list, session: Optional[str] = None) -> None:
-        """entries: liste de tuples (nonce, parity, n_bits, rs_nsym)."""
-        for nonce, parity, n_bits, rs_nsym in entries:
-            self.put(nonce, parity, n_bits, rs_nsym, session=session)
+        """
+        entries: tuples (nonce, parity, n_bits, rs_nsym[, h_ref[, user]]).
+
+        Une seule transaction pour tout le lot : put() commite chaque entree,
+        soit une synchronisation disque par image (~30 ecritures/s sur un
+        disque portable, mesure de tests/charge/charge_registre.py). Le lot
+        est atomique : un seul nonce deja vu et rien n'est enregistre.
+        """
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        rows = []
+        for e in entries:
+            nonce, parity, n_bits, rs_nsym = e[:4]
+            h_ref = e[4] if len(e) > 4 else None
+            user = e[5] if len(e) > 5 else None
+            if not isinstance(parity, (bytes, bytearray)):
+                raise TypeError("parity doit etre bytes")
+            if h_ref is not None and not isinstance(h_ref, (bytes, bytearray)):
+                raise TypeError("h_ref doit etre bytes")
+            if nonce < 0:
+                raise ValueError("nonce doit etre positif")
+            rows.append((nonce, bytes(parity), n_bits, rs_nsym,
+                         bytes(h_ref) if h_ref is not None else None,
+                         user, session, now))
+        try:
+            with self._conn:
+                self._conn.executemany(
+                    "INSERT INTO traces "
+                    "(nonce, parity, n_bits, rs_nsym, h_ref, user, session, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    rows,
+                )
+        except sqlite3.IntegrityError as exc:
+            raise NonceReuseError(
+                "un nonce du lot est deja enregistre : lot entier refuse "
+                "(reutiliser un nonce reutilise le keystream)"
+            ) from exc
 
     # ------------------------------------------------------------- lecture ---
 

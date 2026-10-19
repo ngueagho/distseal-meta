@@ -1,0 +1,50 @@
+# CI de CipherMark : tests unitaires et d'integration sur CPU, puis test de
+# charge du registre. Aucun GPU ni checkpoint : le tatoueur appris est
+# remplace par un tatoueur factice dans test_pipeline.py, la chaine
+# cryptographique (HMAC, PRG, registre, verification) est la vraie.
+name: ciphermark
+
+on:
+  push:
+    branches: [ciphermark]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Dependances (torch CPU)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt pytest
+          # importees en cascade par distseal/__init__, absentes de requirements.txt
+          pip install accelerate diffusers transformers huggingface_hub wandb \
+                      scikit-learn torchdiffeq torchmetrics matplotlib termcolor
+
+      - name: Tests unitaires et d'integration
+        env:
+          PYTHONPATH: deps:.
+        run: python -m pytest tests/ciphermark -q
+
+      - name: Test de charge du registre
+        env:
+          PYTHONPATH: deps:.
+        run: python tests/charge/charge_registre.py --n 2000 20000 --out runs/charge_registre.json
+
+      - name: Rapport de charge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: charge-registre
+          path: runs/charge_registre.json
+          if-no-files-found: ignore

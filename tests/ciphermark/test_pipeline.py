@@ -101,11 +101,22 @@ def test_round_trip_authentic():
         assert r.distance == 0
 
 
-def test_point_fixe_converge():
+def test_point_fixe_borne():
+    """
+    En mode comparaison, la boucle n'atteint pas de point fixe exact
+    (memoire, chapitre 2) et n'en a pas besoin. Ce qui doit tenir : elle est
+    bornee, et la reference enregistree est exactement le hash dont Omega a
+    ete derive. L'ancien test exigeait la convergence, trivialement vraie
+    avec la correction Reed-Solomon, impossible depuis le commit 734d7e5.
+    """
     cm, imgs = _make(n=2)
     out = cm.embed(imgs)
-    assert out["converged"], "la boucle de point fixe n'a pas converge"
-    assert 1 <= out["n_iters"] <= 5
+    assert 1 <= out["n_iters"] <= cm.cfg.max_fixed_point_iters
+    assert len(out["fp_trace"]) == out["n_iters"]
+    for iid, omega in zip(out["image_ids"], out["omega"]):
+        h_ref = cm.registry.h_ref_for(iid)
+        attendu = cm._omega_bits_for([h_ref], [iid])[0]
+        assert torch.equal(attendu.cpu(), omega.cpu())
 
 
 def test_rejeu_transplante_rejete():

@@ -78,3 +78,16 @@ if __name__ == "__main__":
     test_next_free_nonce()
     test_len_contains_iter()
     print("[registry] OK")
+
+
+def test_put_many_atomique():
+    """Un lot contenant un nonce deja vu est refuse en entier."""
+    reg = TraceRegistry()
+    reg.put_many([(1, b"a" * 32, 64, 32), (2, b"b" * 32, 64, 32, b"h" * 32, "u")])
+    assert len(reg) == 2 and reg.h_ref_for(2) == b"h" * 32
+    try:
+        reg.put_many([(3, b"c" * 32, 64, 32), (2, b"d" * 32, 64, 32)])
+        raise AssertionError("un nonce reutilise a ete accepte")
+    except NonceReuseError:
+        pass
+    assert len(reg) == 2 and reg.get(3) is None

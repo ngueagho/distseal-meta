@@ -4,6 +4,8 @@
 # 🎥 🦭 DistSeal: Learning to Watermark in Latent Space
 </div>
 
+[![ciphermark](https://github.com/ngueagho/distseal-meta/actions/workflows/ciphermark.yml/badge.svg?branch=ciphermark)](https://github.com/ngueagho/distseal-meta/actions/workflows/ciphermark.yml)
+
 <div>
 Official implementation of DistSeal, a unified framework for latent watermarking that works across both diffusion and autoregressive models. In the 🚀 Usage sections, we show examples of in-model watermarking and post-hoc latent watermarking for the diffusion model DC-AE and the autoregressive model RAR. We provide the model checkpoints from the paper, as well as the training code to reproduce them.
 <br><br>
