@@ -1114,3 +1114,16 @@ aujourd'hui. Phase K bis : 97,8 % a 0,9 (contre 96,7), 42,5 % a 0,7 (contre
 52,0). Le chiffre a 0,7 porte une dizaine de points d'incertitude ; le
 memoire le dit. Resultats : Drive
 15-test-recadrage-phaseK/resultats/rotation_19oct/.
+
+## Ablation hessienne refaite sur le vrai modele (19 octobre)
+
+La relecture critique a releve que l'ablation SSE du memoire tournait sur un
+checkpoint 256 bits reste au niveau du hasard (bit_acc 0,599) : aucune
+conclusion possible. Refaite en local (le script est CPU par conception) sur
+le modele de reference 64 bits (`runs/ciphermark_64bits_checkpoint.pth`, md5
+b4dbbfdf, identique a phaseA2_64bits_stable du Drive), 64 images d'evaluation :
+sans projection 1,0000 -> 0,8962 ; hessienne -> 0,9175 ; aleatoire -> 1,0000.
+L'attaque contrainte a un sous-espace aleatoire ne reduit sa perte que de
+1,3 % (25,9 % sans contrainte) : stabilite = attaque inoperante, pas
+protection. Lanczos : 58 min sur 4 coeurs (machine chargee ; l'agent VC-UY a
+ete arrete pendant la mesure). Resultats : Drive 17-ablation-hessienne-64bits/.
