@@ -152,6 +152,11 @@ def build_attacks():
     for s in (0.9, 0.7, 0.5):
         c = geometric.Crop()
         A.append((f"crop_{s}", lambda x, c=c, s=s: c(x, None, size=s)[0]))
+    # Rotation : la phase K l'a a l'entrainement (+-10 degres), le rapport
+    # d'examen la demande ; 2, 5 et 10 degres, coins noirs, sans recadrage.
+    for a in (2, 5, 10):
+        r = geometric.Rotate()
+        A.append((f"rotation_{a}", lambda x, r=r, a=a: r(x, None, angle=a)[0]))
     for f in (0.8, 1.2):
         b = valuemetric.Brightness()
         A.append((f"lumin_{f}", lambda x, b=b, f=f: b(x, None, f)[0]))

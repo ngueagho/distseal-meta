@@ -1095,3 +1095,22 @@ arrete : la connexion locale (~4 Ko/s) ne permettait pas de le rapatrier ; il
 se regenere en 23 min depuis phase B (Drive) et la config du depot.
 Incident : le checkpoint phase B telecharge en local etait tronque (269 Mo sur
 485, md5 faux) ; verifier le md5 avant tout transfert.
+
+## Rotation jamais evaluee ; recadrage non reproductible a la position pres (19 octobre)
+
+Le rapport d'examen demandait recadrage, mise a l'echelle ET rotations. La
+liste d'attaques de eval_recovery_robustness (build_attacks) n'avait jamais
+contenu de rotation, ni pour la campagne ni pour la phase K. Ajout de
+rotation_2/5/10 (angle fixe, coins noirs). Pod 8dua7m3g0d9qb3 : phase K
+reentrainee a l'identique (le checkpoint du 19 au matin avait ete supprime
+avec son pod), puis rotations + recadrages sur les 1 000 images val2017.
+AUTHENTIC, phase B / phase K : 2 deg 96,7 / 96,0 ; 5 deg 87,1 / 89,4 ;
+10 deg 80,4 / 80,0. Omega lu (bit_acc >= 0,989), echecs = rejets par le hash.
+Pas de falaise : phase B avait deja Rotate dans all_augs_v3.
+
+Constat au passage : Crop tire la POSITION du morceau au hasard et torch n'est
+pas seme dans le script. Meme modele phase B, crop 0,9 : 26,9 % hier, 21,9 %
+aujourd'hui. Phase K bis : 97,8 % a 0,9 (contre 96,7), 42,5 % a 0,7 (contre
+52,0). Le chiffre a 0,7 porte une dizaine de points d'incertitude ; le
+memoire le dit. Resultats : Drive
+15-test-recadrage-phaseK/resultats/rotation_19oct/.
