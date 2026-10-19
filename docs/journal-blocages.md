@@ -952,3 +952,146 @@ la commande, jamais la presence des donnees. La veille surveillait la vitalite
 du script et l'age du journal -- deux choses vraies pendant que rien n'etait
 copie. Ce qu'il faut verifier est le CONTENU cote destination, et le seul
 moment ou on le fait vraiment est avant de detruire la source.
+
+## 2026-10-14 : La falaise du recadrage 0,9 etait un defaut d'alignement, pas une perte de canal
+
+**Symptome.** Recadrage 0,9 : 0 % de verdicts sur tous les canaux, alors que le
+redimensionnement 0,75 passe a 99,4 %. Le rapport d'examen critique en fait
+le constat 2 (« falaise geometrique absolue ») et exige un reentrainement.
+
+**Deux constats en lisant le code.** `geometric.Crop(size=0.9)` coupe 90 % de
+CHAQUE cote, soit 81 % de la surface et non 90 % comme l'ecrit le memoire.
+Et `Wam.detect()` reetire le morceau de 230 px a 256 px avant lecture : le
+motif est agrandi de 11 % et decale d'une position inconnue.
+
+**Mesure** (`scripts/ciphermark/diag_resync_recadrage.py`, 100 images COCO,
+modele de reference 64 bits, `runs/diag_resync_recadrage_N100.json`, copie sur
+le Drive). Meme morceau, replace a sa taille d'origine sur un canevas de 256 px :
+
+| recadrage | reetire | oracle | oracle +2 px | +4 px | +8 px |
+|---|---|---|---|---|---|
+| 0,9 | 0 % | **90 %** | 36 % | 7 % | 2 % |
+| 0,7 | 0 % | 0 % | 0 % | 0 % | 0 % |
+| 0,5 | 0 % | 0 % | 0 % | 0 % | 0 % |
+
+**Lecture.** A 0,9 le tatouage est intact, c'est l'alignement qui manque. A 0,7
+et 0,5 la perte de contenu domine : aucune resynchronisation ne suffit. La
+tolerance est de l'ordre du pixel, donc une recherche aveugle couterait ~729
+lectures par image (infaisable sur CPU, ~1,5 s par lecture) et une correction
+de seuil en p/729.
+
+**Consequence.** Le reentrainement reste necessaire, mais doit apprendre
+l'invariance par TRANSLATION (recadrages non reetires) avec des augmentations
+geometriques majoritaires. La phase B avait deja crop 0,5-1,0, resize et
+rotations, mais une augmentation sur quatorze par lot (`num_augs: 1`) et des
+recadrages reetires : d'ou ses 23,2 %.
+
+**Lecon.** Avant de reentrainer contre une attaque, verifier si l'information
+est perdue ou seulement mal lue. Une lecture oracle coute une heure de CPU et
+dit lequel des deux.
+
+## 2026-10-18 : Le « 5,5 % sous JPEG 30 » n'etait pas le verdict complet
+
+Le memoire affirmait que la verification complete, hash compris, ne
+conservait que 5,5 % des verdicts sous JPEG Q=30. L'encadreur en a fait son
+constat le plus grave. C'etait une erreur de lecture de nos propres colonnes.
+
+Dans `volet_a_pixel.json` (campagne de cloture, 31 aout), deux colonnes :
+
+- `taux_authentic` = 0,958 : le verdict de `verify()`. Depuis le commit
+  734d7e5 (24 aout), `hamming_threshold = 0.27` est le defaut, et `verify()`
+  declare l'image non tatouee des que la distance de hash depasse
+  tau = 69/256. Un AUTHENTIC implique donc un hash dans le seuil : 95,8 %
+  EST la verification complete.
+- `hash_stable` = 0,0552 : egalite EXACTE du hash apres correction
+  Reed-Solomon (`eval_recovery_robustness.py`, ligne 261). Metrique de
+  l'ancien systeme, que plus aucun verdict n'utilise.
+
+Coherent avec le volet autoregressif, qui mesure lui la bonne grandeur :
+`hash_dans_tau` = 0,9928 sous JPEG 30, derive moyenne 41 bits pour tau = 69.
+
+**Lecon.** Une colonne survit au mecanisme qu'elle mesurait. Quand le mode
+de verification a change, `hash_stable` aurait du etre renomme ou retire ;
+garde tel quel, il a ete lu comme « le hash echoue ».
+
+## 2026-10-18 : Le recadrage fort etait sous-appris, pas perdu (phase K)
+
+Test court sur RTX 4090 Secure (pod 2yj9db36agz2ub, ~1 h 45 au total) :
+reprise de la phase B avec `recadrage_dominant.yaml` (recadrage 50-100 %, 7
+tirages sur 14 au lieu de 1 sur 14), 40 epoques, 23 minutes d'entrainement.
+
+Validation, recadrage 0,71 : 0,770 (ep. 0) -> 0,818 (10) -> 0,879 (20) ->
+0,887 (30) -> 0,913 (35). Lecture sans attaque restee a 0,997-1,000.
+
+Mesure finale, 100 images COCO val2017 jamais vues, detection p < 1e-6,
+lecture STANDARD (reetiree, sans resynchronisation) :
+
+    recadrage   reference   phase B   phase K
+    0,9         0 %         92 %      100 %   (1 erreur mediane)
+    0,7         0 %         26 %      100 %   (6 erreurs mediane)
+    0,5         0 %          0 %       24 %
+
+Le message n'etait pas perdu a 0,7 : l'extracteur n'avait pas appris a le
+lire. Reste a mesurer le verdict AUTHENTIC complet (d <= 6 + hash) et a
+reentrainer le decodeur conditionne sur ce nouvel extracteur.
+
+Incidents de la journee, a ne pas reproduire :
+- Hote Community 38.65.239.56 : cuInit renvoie 999 (pilote casse). Deux pods
+  de suite y sont tombes ; demander une autre version de CUDA ne suffit pas
+  toujours a changer d'hote.
+- `rclone link --unlink` ne retire PAS le partage sur Google Drive : il a
+  fallu copier le fichier cote serveur et supprimer l'original partage.
+- Le cache `.cache/` de `get_image_paths` survit a un changement de corpus et
+  fait planter le DataLoader : le vider apres toute reconstruction.
+- unlabeled2017.zip plafonne a ~2 Mo/s : telecharger seulement le debut de
+  l'archive (les N premieres entrees sont contigues), voir coco_bloc.py.
+- `pkill -f motif` lance par SSH tue la session elle-meme si le motif figure
+  dans la commande : tuer par PID.
+- Sans volume, le disque du pod est efface a l'arret : le checkpoint phase K
+  (md5 4801a2cf...) est perdu ; il se refait en 23 min avec la config.
+
+## « Le décodeur conditionné est plus robuste » comparait deux métriques (18 octobre)
+
+Le tableau de clôture mêlait le verdict AUTHENTIC (colonne pixel) et la
+détection p < 1e-6 (colonnes diffusion et autorégressif). Remesuré en verdict
+complet sur 5 000 images COCO val2017 (diffusion 512 px, notebook 14, section E) :
+98,2 % sous JPEG 30 et 97,5 % sous bruit 0,1, mais 49,1 % sous flou k=7 contre
+70,7 % pour le post-hoc. Le conditionné lit 1,6 bit faux en moyenne sans
+attaque, il lui reste moins de marge avant le seuil de 6. Mémoire corrigé :
+les deux canaux sont complémentaires en verdict complet.
+
+Incident : la section E avait sauté au second lancement, car un dossier vide
+laissé par l'échec torchdiffeq passait pour un résultat. Le saut exige
+désormais un .json.
+
+## Le registre plafonnait a 30 ecritures/s (CI, 19 octobre)
+
+Le test de charge ajoute pour la CI (`tests/charge/charge_registre.py`) a
+mesure 33 ecritures/s : `put()` commite chaque entree, une synchronisation
+disque par image. A ce rythme, 10^9 generations prendraient un an.
+`put_many()` ecrit desormais un lot en une transaction atomique (un nonce
+deja vu et tout le lot est refuse) : ~5 000 ecritures/s. `embed()` l'utilise.
+Lecture : 65 us a N = 10 000, 110 us a N = 100 000 (O(log N)) ; 187 o/entree.
+
+Meme passe : `test_point_fixe_converge` echouait depuis le commit 734d7e5.
+Il exigeait une convergence exacte, trivialement vraie avec Reed-Solomon et
+impossible en mode comparaison (le memoire le dit, chapitre 2). Remplace par
+`test_point_fixe_borne` : boucle bornee, et h_ref est exactement le hash dont
+Omega a ete derive.
+
+Incident : un premier test de charge a 110 000 ecritures unitaires a tourne
+plus de 15 minutes sur le portable avant d'etre arrete ; la CI n'ecrit plus
+que 300 entrees une par une.
+
+## Phase K : le verdict complet suit la detection (19 octobre)
+
+Reentrainement refait a l'identique (pod 70v8z80zlcvjgf, RTX 4090 Secure,
+disque /workspace persistant), puis eval_recovery_robustness sur les memes
+1 000 images val2017 pour phase B et phase K. AUTHENTIC : recadrage 0,9
+26,9 -> 96,7 % ; 0,7 0,1 -> 52,0 % ; 0,5 0 -> 0,2 %. Aucune perte ailleurs.
+Resultats : Drive 15-test-recadrage-phaseK/resultats/verdict_complet_19oct/.
+Checkpoint phase K (md5 26f0e03d...) reste sur le disque persistant du pod
+arrete : la connexion locale (~4 Ko/s) ne permettait pas de le rapatrier ; il
+se regenere en 23 min depuis phase B (Drive) et la config du depot.
+Incident : le checkpoint phase B telecharge en local etait tronque (269 Mo sur
+485, md5 faux) ; verifier le md5 avant tout transfert.

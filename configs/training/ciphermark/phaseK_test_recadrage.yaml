@@ -1,0 +1,98 @@
+#========================================================================================
+# PHASE K -- TEST COURT : le recadrage fort est-il apprenable ?
+#
+# LA QUESTION
+# -----------
+# Au recadrage 0,7 et 0,5, le modele de reference lit 0 % de verdicts, meme
+# replace a la position exacte (diag_resync_recadrage, 100 images). Deux
+# explications : l'information est perdue, ou l'extracteur n'a jamais appris a
+# la lire. Ce run tranche, pour environ 2 h 30 de RTX 4090 (~1 $).
+#
+# POURQUOI ON PART DE LA PHASE B
+# ------------------------------
+# Son journal montre que le signal existe : au recadrage 0,71 (validation),
+# bit_acc 0,516 a l'epoque 0, 0,688 a 300, 0,767 a 520-540, sans plateau. Mais
+# le recadrage n'y pesait qu'un tirage sur 14 (all_augs_v3). On reprend ses
+# poids et on donne au recadrage 7 tirages sur 14 (recadrage_dominant.yaml).
+#
+#   lancement : torchrun --nproc_per_node=1 train.py --config <ce fichier> \
+#                        --resume_from /workspace/ckpt/phaseB_64bits_robuste.pth
+#
+# `--resume_from` ne charge que les poids : le calendrier repart de zero.
+#
+# LES ECARTS PAR RAPPORT A phaseB_64bits_robuste, ET POURQUOI
+# -----------------------------------------------------------
+#   augmentation_config : all_augs_v3 -> recadrage_dominant   (l'objet du test)
+#   epochs / t_initial  : 600 -> 40       un test, pas un entrainement
+#   eval_freq           : 20 -> 5         huit lectures de Crop_0.71 au lieu de deux
+#   warmup_t            : 50 -> 3         les poids sont deja formes
+#   lr_min              : 1e-6 -> 1e-5    ne pas eteindre l'apprentissage en 40 epoques
+#   full_eval_freq      : desactivee      mesure finale faite a part, voir plus bas
+#
+# COMMENT LIRE LE RESULTAT
+# ------------------------
+# Courbe a surveiller : val_bit_acc_mask=0_aug=Crop_0.71 (meme cle que la
+# phase B, donc directement comparable) et Identity_0, qui doit rester >= 0,999.
+#   - Crop_0.71 >= 0,85 a l'epoque 40 : apprenable -> chaine complete
+#   - Crop_0.71 qui stagne vers 0,77  : le recadrage fort bute sur le modele,
+#     on l'ecrit comme limite mesuree
+# Puis, sur le checkpoint obtenu :
+#   CKPT=<checkpoint> PYTHONPATH=deps:. python3 scripts/ciphermark/diag_resync_recadrage.py
+#   (lecture reetiree ET a la position exacte, recadrages 0,9 / 0,7 / 0,5)
+#========================================================================================
+output_dir: "/workspace/runs/phaseK_test_recadrage"
+
+dataset:
+    train_dir: ./corpus-colab/train
+    val_dir: ./corpus-colab/val
+    train_annotation_file: null
+    val_annotation_file: null
+
+img_size_proc: 256
+img_size_val: 256
+img_size: 256
+
+embedder_model: unet_small2_yuv_quant
+extractor_model: convnext_tiny
+nbits: 64
+hidden_size_multiplier: 1
+scaling_w: 0.1152
+scaling_w_schedule: Constant,scaling_min=0.1152,epochs=40
+
+seed: 0
+
+batch_size_eval: 8
+batch_size: 16
+workers: 4
+
+attenuation: null
+scaling_i: 1.0
+ae_quantize: true
+videowam_step_size: 8
+
+num_augs: 1
+augmentation_config: configs/augmentation/recadrage_dominant.yaml
+
+balanced: false
+total_gnorm: 1.0
+lambda_dec: 1.0
+lambda_det: 0.0
+lambda_d: 0.0
+lambda_i: 0.0
+perceptual_loss: mse
+maskbit_disc: true
+maskbit_maxpool: 8
+disc_num_layers: 3
+disc_in_channels: 3
+disc_start: 999999
+
+epochs: 40
+iter_per_epoch: 200
+eval_freq: 5
+saveimg_freq: 20
+iter_per_valid: 4
+scheduler: CosineLRScheduler,lr_min=1e-5,t_initial=40,warmup_lr_init=1e-6,warmup_t=3
+optimizer: AdamW,lr=1e-4
+full_eval_freq: 50
+finetune_detector_start: 2000
+saveckpt_freq: 999999

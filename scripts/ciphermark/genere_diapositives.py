@@ -35,7 +35,8 @@ ENCADREUR_TITRE = "Maître de Conférences"
 ETABLISSEMENT = "Universite de Yaounde I  ·  Faculte des Sciences"
 DEPARTEMENT = "Departement d'Informatique  ·  Master 2"
 TITRE = ("Developpement d'un systeme de tatouage numerique securise\n"
-         "pour les modeles generatifs, fonde sur la technique OTP")
+         "pour les modeles generatifs, fonde sur un chiffrement par flot\n"
+         "calculatoire synchronise par nonce")
 
 # ---------------------------------------------------------------- palette ---
 ENCRE     = RGBColor(0x14, 0x1F, 0x33)   # bleu nuit, le fond des titres

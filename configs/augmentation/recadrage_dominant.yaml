@@ -1,0 +1,44 @@
+# Recadrage dominant : la moitie des tirages est un recadrage de 50 a 100 %,
+# le reste garde les attaques photometriques et de compression pour que le
+# canal n'oublie pas ce qu'il sait deja faire.
+#
+# Pourquoi : all_augs_v3 tirait une augmentation parmi 14 a poids egaux, soit
+# un recadrage une fois sur 14. La phase B a pourtant appris a lire le
+# recadrage 0,71 de 0,516 a 0,767 en 600 epoques, sans plafonner. Le signal
+# existe ; il etait sous-echantillonne. Ici le recadrage pese 7 sur 14.
+masks:
+  kind: none
+
+augs:
+  identity:           1
+  jpeg:               1
+  resize:             1
+  crop:               7
+  gaussian_blur:      1
+  brightness:         1
+  contrast:           1
+  rotate:             1
+
+augs_params:
+  resize:
+    min_size: 0.7
+    max_size: 1.5
+  crop:
+    min_size: 0.5
+    max_size: 1.0
+  rotate:
+    min_angle: -10
+    max_angle: 10
+    do90: False
+  jpeg:
+    min_quality: 40
+    max_quality: 80
+  gaussian_blur:
+    min_kernel_size: 3
+    max_kernel_size: 17
+  brightness:
+    min_factor: 0.5
+    max_factor: 2
+  contrast:
+    min_factor: 0.5
+    max_factor: 2.0
