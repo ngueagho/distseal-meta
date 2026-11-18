@@ -1,0 +1,162 @@
+{
+  "nbits": 64,
+  "hash_bits": 256,
+  "taille_octets": 32,
+  "resultats": [
+    {
+      "cas": "marquage",
+      "n": 5000,
+      "moyenne": 29.6332,
+      "median": 30.0,
+      "max": 32,
+      "p95": 32.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "jpeg_q50",
+      "n": 5000,
+      "moyenne": 19.7112,
+      "median": 20.0,
+      "max": 32,
+      "p95": 26.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "jpeg_q30",
+      "n": 5000,
+      "moyenne": 22.988,
+      "median": 23.0,
+      "max": 32,
+      "p95": 29.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "flou_k5",
+      "n": 5000,
+      "moyenne": 18.701,
+      "median": 19.0,
+      "max": 32,
+      "p95": 25.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "resize_0.5",
+      "n": 5000,
+      "moyenne": 21.3372,
+      "median": 21.0,
+      "max": 32,
+      "p95": 28.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "crop_0.9",
+      "n": 5000,
+      "moyenne": 22.4258,
+      "median": 23.0,
+      "max": 32,
+      "p95": 28.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "crop_0.5",
+      "n": 5000,
+      "moyenne": 29.1898,
+      "median": 30.0,
+      "max": 32,
+      "p95": 32.0,
+      "taille_hash_octets": 32
+    },
+    {
+      "cas": "AUTRE_image",
+      "n": 5000,
+      "moyenne": 31.6696,
+      "median": 32.0,
+      "max": 32,
+      "p95": 32.0,
+      "taille_hash_octets": 32
+    }
+  ],
+  "resultats_bits": [
+    {
+      "cas": "marquage",
+      "n": 5000,
+      "moyenne": 77.7698,
+      "median": 78.0,
+      "max": 136,
+      "p95": 111.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.3532
+    },
+    {
+      "cas": "jpeg_q50",
+      "n": 5000,
+      "moyenne": 29.7986,
+      "median": 29.0,
+      "max": 88,
+      "p95": 47.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.9986
+    },
+    {
+      "cas": "jpeg_q30",
+      "n": 5000,
+      "moyenne": 39.0208,
+      "median": 38.0,
+      "max": 113,
+      "p95": 59.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.9896
+    },
+    {
+      "cas": "flou_k5",
+      "n": 5000,
+      "moyenne": 27.4322,
+      "median": 26.0,
+      "max": 75,
+      "p95": 43.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.9992
+    },
+    {
+      "cas": "resize_0.5",
+      "n": 5000,
+      "moyenne": 34.0448,
+      "median": 33.0,
+      "max": 91,
+      "p95": 52.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.9942
+    },
+    {
+      "cas": "crop_0.9",
+      "n": 5000,
+      "moyenne": 36.7556,
+      "median": 36.0,
+      "max": 82,
+      "p95": 54.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.9986
+    },
+    {
+      "cas": "crop_0.5",
+      "n": 5000,
+      "moyenne": 69.9104,
+      "median": 69.0,
+      "max": 126,
+      "p95": 96.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.506
+    },
+    {
+      "cas": "AUTRE_image",
+      "n": 5000,
+      "moyenne": 113.3644,
+      "median": 114.0,
+      "max": 146,
+      "p95": 132.0,
+      "taille_hash_octets": 256,
+      "fraction_sous_tau": 0.0008
+    }
+  ],
+  "tau_bits": 69
+}

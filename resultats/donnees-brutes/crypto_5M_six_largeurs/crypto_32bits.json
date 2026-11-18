@@ -1,0 +1,89 @@
+{
+  "n": 5000000,
+  "n_bits": 32,
+  "prg_backend": "chacha20",
+  "unicite": {
+    "n_omega_distincts": 4997098,
+    "collisions_omega": 2902,
+    "n_nonces_distincts": 5000000,
+    "collisions_nonce": 0,
+    "collisions_attendues_hasard": 2910.382463596761
+  },
+  "separation": {
+    "hamming_moyen": 16.000131607055664,
+    "hamming_min": 3,
+    "hamming_max": 30,
+    "n_echantillon": 6000,
+    "attendu": 16.0
+  },
+  "avalanche": {
+    "hash_1bit": {
+      "n": 20000,
+      "moyenne": 15.986,
+      "ecart_type": 2.8381867450891956,
+      "min": 5,
+      "max": 27,
+      "attendu_moyenne": 16.0,
+      "attendu_ecart_type": 2.8284271247461903
+    },
+    "nonce_voisin": {
+      "n": 20000,
+      "moyenne": 15.99335,
+      "ecart_type": 2.8282513639172877,
+      "min": 4,
+      "max": 28,
+      "attendu_moyenne": 16.0,
+      "attendu_ecart_type": 2.8284271247461903
+    },
+    "cle_1bit": {
+      "n": 5000,
+      "moyenne": 15.9186,
+      "ecart_type": 2.7904791774890563,
+      "min": 6,
+      "max": 27,
+      "attendu_moyenne": 16.0,
+      "attendu_ecart_type": 2.8284271247461903
+    }
+  },
+  "uniformite": {
+    "frequence_min": 0.4995666,
+    "frequence_max": 0.5005036,
+    "frequence_moyenne": 0.500057925,
+    "chi2": 34.8799584,
+    "ddl": 32,
+    "chi2_par_ddl": 1.0899987,
+    "monobit_s_n": 1.465399467722027,
+    "monobit_p_valeur": 0.1428119625868499
+  },
+  "identite": {
+    "n_users": 20000,
+    "cles_distinctes": 20000,
+    "collisions_cles": 0,
+    "omega_distincts": 20000,
+    "hamming_moyen": 16.000396728515625,
+    "hamming_min": 2,
+    "hamming_max": 30,
+    "n_croises": 500,
+    "faux_acceptes": 1,
+    "seuil_bits": 8
+  },
+  "determinisme": {
+    "n": 20000,
+    "reproductions_exactes": 20000
+  },
+  "independance": {
+    "n": 20000,
+    "correlation_max": 0.02227346676683715,
+    "correlation_moyenne": 0.005226444191834356,
+    "seuil_bruit_2sigma": 0.01414213562373095
+  },
+  "registre": {
+    "n_entrees": 20000,
+    "rejeu_detecte": true,
+    "h_ref_relus_intacts": 5000,
+    "h_ref_verifies": 5000
+  },
+  "echecs": [
+    "attribution par identite en defaut"
+  ]
+}

@@ -1,0 +1,46 @@
+EfficientViT not found.
+/usr/local/lib/python3.12/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[13:13:16] N=5000000 generations, Omega de 64 bits, PRG = chacha20
+[13:15:07] 1/7 unicite d'Omega et des nonces
+[13:25:12]     5000000 Omega construits en 605.3s (8261/s)
+[13:26:32]     collisions Omega : 0 (attendu par hasard : 6.78e-07)
+[13:26:32] 2/7 distance de Hamming entre generations distinctes
+[13:26:36]     moyenne 32.00/64 (attendu 32.0), min 11, max 52, sur 6000 tirages
+[13:26:36] 3/7 avalanche : un seul bit change en entree
+[13:26:47]     hash_1bit      32.02 +- 3.97 bits changes (attendu 32.0 +- 4.00)
+[13:26:47]     nonce_voisin   32.01 +- 3.98 bits changes (attendu 32.0 +- 4.00)
+[13:26:47]     cle_1bit       32.05 +- 3.97 bits changes (attendu 32.0 +- 4.00)
+[13:26:47] 4/7 uniformite des bits d'Omega
+[13:27:00]     frequence de 1 : [0.4994, 0.5006] moyenne 0.50001
+[13:27:00]     chi2 = 57.4 pour 64 ddl (0.90 par ddl), monobit p = 0.832
+[13:27:00] 5/7 attribution : 20000 identites derivees d'un identifiant
+[13:27:20]     cles distinctes : 20000/20000, Omega distincts : 20000/20000
+[13:27:20]     Hamming entre identites : 32.00/64 (min 12)
+[13:27:20]     rejet croise : 0/500 faussement acceptes (seuil 16 bits)
+[13:27:20] 6/7 determinisme du PRG et du HMAC
+[13:27:22]     20000/20000 reconstructions bit a bit identiques
+[13:27:22] 7/7 independance entre les bits du hash et ceux d'Omega
+[13:27:27]     |correlation| max 0.0287, moyenne 0.0056 (bruit a 2 sigma : 0.0141)
+[13:27:27] bonus : rejeu de nonce dans le registre
+[13:27:30]     20000 entrees, rejeu detecte : True, h_ref relus intacts : 5000/5000
+
+==============================================================================
+COUCHE CRYPTOGRAPHIQUE -- 5000000 generations, Omega de 64 bits
+==============================================================================
+  collisions d'Omega            0
+  Hamming entre generations     32.00 / 64
+  avalanche hash_1bit           32.02 +- 3.97
+  avalanche nonce_voisin        32.01 +- 3.98
+  avalanche cle_1bit            32.05 +- 3.97
+  frequence de 1                0.50001
+  monobit (p-valeur)            0.832
+  identites : Omega distincts   20000 / 20000
+  rejet croise (faux acceptes)  0 / 500
+  correlation hash/Omega max    0.0287
+  rejeu de nonce detecte        True
+  h_ref relus intacts           5000 / 5000
+==============================================================================
+VERDICT : les 8 proprietes tiennent sur 5000000 tirages.
+
+[13:27:30] resultats ecrits dans /workspace/runs/crypto_largeurs/crypto_64bits.json

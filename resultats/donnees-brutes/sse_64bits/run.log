@@ -1,0 +1,53 @@
+/home/roberto/.local/lib/python3.12/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+/home/roberto/.local/lib/python3.12/site-packages/torch/amp/autocast_mode.py:270: UserWarning: User provided device_type of 'cuda', but CUDA is not available. Disabling
+  warnings.warn(
+[sse-hessian] 21:46:59 demarrage. checkpoint=runs/ciphermark_64bits_checkpoint.pth
+[sse-hessian] 21:46:59 CPU uniquement, threads=4, CUDA_VISIBLE_DEVICES=''
+[sse-hessian] 21:46:59 GRN.forward monkeypatche (norme stabilisee pour le double-backward Lanczos)
+[sse-hessian] 21:47:01 checkpoint epoch=1200
+[sse-hessian] 21:47:12 scaling_w rejoue depuis le schedule a l'epoque 1200: 0.5 (statique) -> 0.1152 (effectif)
+[sse-hessian] 21:47:12 Wam charge en 10.3s (nbits=64)
+[sse-hessian] 21:47:12 table d'embedding attaquee: shape=(128, 64), d=8192
+[sse-hessian] 21:47:12 chargement de 84 images depuis corpus-colab/val
+[sse-hessian] 21:51:48 bit_acc de depart (checkpoint intact, avant experience) = 1.0000
+[sse-hessian] 21:51:48 lancement Lanczos: d=8192, k=16, n_iter=24, n_samples=1 (peut prendre plusieurs minutes sur CPU)
+[lanczos] d = 8192, k = 16, n_iter = 24
+  iter   0: alpha=+6.723e-05, beta=+4.121e-03, t=207.9s
+  iter  10: alpha=-5.806e-05, beta=+3.226e-03, t=1609.0s
+  iter  20: alpha=+8.438e-04, beta=+1.792e-03, t=3008.9s
+[lanczos] termine en 3462.3s, vals top5 = [0.2839427888393402, 0.026528742164373398, 0.01806085743010044, 0.01379454042762518, 0.012495878152549267]
+[sse-hessian] 22:49:30 Lanczos termine en 3462.7s
+[sse-hessian] 22:49:30 valeurs propres top-16 du Hessien (loss de decodage): [0.283943, 0.026529, 0.018061, 0.013795, 0.012496, 0.011269, 0.009639, 0.009119, 0.006261, 0.005196, 0.004646, 0.003406, 0.00262, 0.001555, 0.000628, 0.0]
+[sse-hessian] 22:49:30 cache (basis + vals) sauve dans runs/sse_64bits/projecteur.pt
+[sse] chargement projecteur depuis runs/sse_64bits/projecteur.pt
+[sse-hessian] 22:49:30 projecteur Hessien: U shape=(8192, 16)
+[sse-hessian] 22:49:30 === condition: aucune_projection_raw_finetune ===
+[sse-hessian] 22:51:18 [aucune_projection_raw_finetune] avant fine-tune: bit_acc=1.0000, proxy_loss=0.005784
+[sse-hessian] 22:51:49   [aucune_projection_raw_finetune] pas  0/30: proxy_loss=0.005784, ||grad||=1.1633e-03, t=31.5s
+[sse-hessian] 22:56:06   [aucune_projection_raw_finetune] pas 10/30: proxy_loss=0.005201, ||grad||=1.1337e-03, t=288.1s
+[sse-hessian] 22:59:28   [aucune_projection_raw_finetune] pas 20/30: proxy_loss=0.004692, ||grad||=9.1633e-04, t=490.0s
+[sse-hessian] 23:02:27   [aucune_projection_raw_finetune] pas 29/30: proxy_loss=0.004321, ||grad||=7.5510e-04, t=669.4s
+[sse-hessian] 23:04:00 [aucune_projection_raw_finetune] apres fine-tune: bit_acc=0.8962, proxy_loss=0.004284
+[sse-hessian] 23:04:00 === condition: projection_aleatoire_actuel_ciphermark ===
+[sse-hessian] 23:05:33 [projection_aleatoire_actuel_ciphermark] avant fine-tune: bit_acc=1.0000, proxy_loss=0.005784
+[sse-hessian] 23:05:48   [projection_aleatoire_actuel_ciphermark] pas  0/30: proxy_loss=0.005784, ||grad||=5.2319e-05, t=14.6s
+[sse-hessian] 23:08:11   [projection_aleatoire_actuel_ciphermark] pas 10/30: proxy_loss=0.005758, ||grad||=5.1651e-05, t=157.3s
+[sse-hessian] 23:10:34   [projection_aleatoire_actuel_ciphermark] pas 20/30: proxy_loss=0.005733, ||grad||=5.0882e-05, t=300.7s
+[sse-hessian] 23:12:43   [projection_aleatoire_actuel_ciphermark] pas 29/30: proxy_loss=0.005710, ||grad||=4.9831e-05, t=429.2s
+[sse-hessian] 23:14:15 [projection_aleatoire_actuel_ciphermark] apres fine-tune: bit_acc=1.0000, proxy_loss=0.005707
+[sse-hessian] 23:14:15 === condition: projection_hessien_sse_jamais_teste ===
+[sse-hessian] 23:15:47 [projection_hessien_sse_jamais_teste] avant fine-tune: bit_acc=1.0000, proxy_loss=0.005784
+[sse-hessian] 23:16:01   [projection_hessien_sse_jamais_teste] pas  0/30: proxy_loss=0.005784, ||grad||=6.5450e-04, t=13.9s
+[sse-hessian] 23:18:25   [projection_hessien_sse_jamais_teste] pas 10/30: proxy_loss=0.005519, ||grad||=4.7824e-04, t=158.0s
+[sse-hessian] 23:20:52   [projection_hessien_sse_jamais_teste] pas 20/30: proxy_loss=0.005294, ||grad||=4.2624e-04, t=304.4s
+[sse-hessian] 23:23:04   [projection_hessien_sse_jamais_teste] pas 29/30: proxy_loss=0.005109, ||grad||=3.9929e-04, t=436.8s
+[sse-hessian] 23:24:37 [projection_hessien_sse_jamais_teste] apres fine-tune: bit_acc=0.9175, proxy_loss=0.005090
+[sse-hessian] 23:24:37 ==============================================================================
+[sse-hessian] 23:24:37 condition                               acc avant  acc apres      delta
+[sse-hessian] 23:24:37 aucune_projection_raw_finetune             1.0000     0.8962    -0.1038
+[sse-hessian] 23:24:37 projection_aleatoire_actuel_ciphermark     1.0000     1.0000    +0.0000
+[sse-hessian] 23:24:37 projection_hessien_sse_jamais_teste        1.0000     0.9175    -0.0825
+[sse-hessian] 23:24:37 ==============================================================================
+[sse-hessian] 23:24:37 resultats sauves dans runs/sse_64bits/resultats.json
+[sse-hessian] 23:24:37 termine.

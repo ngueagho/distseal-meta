@@ -1,0 +1,154 @@
+{
+  "n_images": 5000,
+  "n_bits": 256,
+  "collisions": 1,
+  "distance_moyenne": 125.29064772954591,
+  "distance_min": 0,
+  "distance_max": 176,
+  "distance_p1": 94.0,
+  "entropie_effective": 252.0093568004264,
+  "bits_quasi_constants": 0,
+  "correlation_moyenne": 0.045013679116135505,
+  "paires_les_plus_proches": [
+    {
+      "distance": 0,
+      "image_a": "ski_chelsea_0.png",
+      "ecart_type_a": 0.16718940436840057,
+      "image_b": "ski_cat_0.png",
+      "ecart_type_b": 0.16718940436840057
+    },
+    {
+      "distance": 12,
+      "image_a": "coco_000000179750.jpg",
+      "ecart_type_a": 0.2801051437854767,
+      "image_b": "coco_000000192094.jpg",
+      "ecart_type_b": 0.26487424969673157
+    },
+    {
+      "distance": 13,
+      "image_a": "ski_coffee_0.png",
+      "ecart_type_a": 0.3026679754257202,
+      "image_b": "ski_coffee_1.png",
+      "ecart_type_b": 0.30463624000549316
+    },
+    {
+      "distance": 19,
+      "image_a": "coco_000000341753.jpg",
+      "ecart_type_a": 0.20151782035827637,
+      "image_b": "coco_000000069078.jpg",
+      "ecart_type_b": 0.19413557648658752
+    },
+    {
+      "distance": 21,
+      "image_a": "coco_000000569105.jpg",
+      "ecart_type_a": 0.16598235070705414,
+      "image_b": "coco_000000469589.jpg",
+      "ecart_type_b": 0.16176384687423706
+    },
+    {
+      "distance": 21,
+      "image_a": "ski_camera_0.png",
+      "ecart_type_a": 0.28458482027053833,
+      "image_b": "ski_camera_3.png",
+      "ecart_type_b": 0.2771940231323242
+    },
+    {
+      "distance": 23,
+      "image_a": "coco_000000262282.jpg",
+      "ecart_type_a": 0.29238393902778625,
+      "image_b": "coco_000000351628.jpg",
+      "ecart_type_b": 0.24068501591682434
+    },
+    {
+      "distance": 23,
+      "image_a": "ski_camera_4.png",
+      "ecart_type_a": 0.23032626509666443,
+      "image_b": "ski_camera_3.png",
+      "ecart_type_b": 0.2771940231323242
+    },
+    {
+      "distance": 24,
+      "image_a": "coco_000000519276.jpg",
+      "ecart_type_a": 0.17971496284008026,
+      "image_b": "coco_000000440649.jpg",
+      "ecart_type_b": 0.1685291975736618
+    },
+    {
+      "distance": 25,
+      "image_a": "coco_000000190472.jpg",
+      "ecart_type_a": 0.20679694414138794,
+      "image_b": "coco_000000364954.jpg",
+      "ecart_type_b": 0.24956375360488892
+    },
+    {
+      "distance": 25,
+      "image_a": "coco_000000086522.jpg",
+      "ecart_type_a": 0.2932153642177582,
+      "image_b": "coco_000000274695.jpg",
+      "ecart_type_b": 0.2658405601978302
+    },
+    {
+      "distance": 26,
+      "image_a": "coco_000000159565.jpg",
+      "ecart_type_a": 0.14585301280021667,
+      "image_b": "coco_000000262102.jpg",
+      "ecart_type_b": 0.22235506772994995
+    },
+    {
+      "distance": 26,
+      "image_a": "coco_000000038312.jpg",
+      "ecart_type_a": 0.1942385882139206,
+      "image_b": "coco_000000281569.jpg",
+      "ecart_type_b": 0.20799709856510162
+    },
+    {
+      "distance": 27,
+      "image_a": "coco_000000311775.jpg",
+      "ecart_type_a": 0.2542729377746582,
+      "image_b": "coco_000000512074.jpg",
+      "ecart_type_b": 0.2470523566007614
+    },
+    {
+      "distance": 27,
+      "image_a": "coco_000000571771.jpg",
+      "ecart_type_a": 0.11936518549919128,
+      "image_b": "coco_000000159565.jpg",
+      "ecart_type_b": 0.14585301280021667
+    },
+    {
+      "distance": 28,
+      "image_a": "ski_camera_4.png",
+      "ecart_type_a": 0.23032626509666443,
+      "image_b": "ski_camera_0.png",
+      "ecart_type_b": 0.28458482027053833
+    },
+    {
+      "distance": 28,
+      "image_a": "coco_000000081533.jpg",
+      "ecart_type_a": 0.18563073873519897,
+      "image_b": "coco_000000234798.jpg",
+      "ecart_type_b": 0.2189621776342392
+    },
+    {
+      "distance": 29,
+      "image_a": "coco_000000244192.jpg",
+      "ecart_type_a": 0.21881163120269775,
+      "image_b": "coco_000000354635.jpg",
+      "ecart_type_b": 0.16769185662269592
+    },
+    {
+      "distance": 29,
+      "image_a": "coco_000000207101.jpg",
+      "ecart_type_a": 0.2512691020965576,
+      "image_b": "coco_000000351628.jpg",
+      "ecart_type_b": 0.24068501591682434
+    },
+    {
+      "distance": 29,
+      "image_a": "coco_000000169342.jpg",
+      "ecart_type_a": 0.1176195740699768,
+      "image_b": "coco_000000440649.jpg",
+      "ecart_type_b": 0.1685291975736618
+    }
+  ]
+}

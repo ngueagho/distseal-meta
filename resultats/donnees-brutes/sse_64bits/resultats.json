@@ -1,0 +1,65 @@
+{
+  "__doc__": "Resultats de l'experience SSE-Hessien vs projection aleatoire vs pas de projection, sur checkpoint reel. Genere par scripts/ciphermark/sse_hessian_experiment.py. Lecture seule recommandee, ne pas editer a la main.",
+  "checkpoint": "runs/ciphermark_64bits_checkpoint.pth",
+  "checkpoint_epoch": 1200,
+  "nbits": 64,
+  "embedding_shape": [
+    128,
+    64
+  ],
+  "d": 8192,
+  "k": 16,
+  "lanczos_n_iter": 24,
+  "lanczos_n_samples": 1,
+  "lora_steps": 30,
+  "lora_step_size": 0.05,
+  "n_hessian_images": 12,
+  "n_ft_images": 8,
+  "n_eval_images": 64,
+  "seed": 0,
+  "baseline_bit_acc_before_any_attack": 1.0,
+  "hessian_top_eigenvalues": [
+    0.2839427888393402,
+    0.026528742164373398,
+    0.01806085743010044,
+    0.01379454042762518,
+    0.012495878152549267,
+    0.011269379407167435,
+    0.009639367461204529,
+    0.009119371883571148,
+    0.006261276081204414,
+    0.005196419544517994,
+    0.004646198358386755,
+    0.003406469477340579,
+    0.002620049985125661,
+    0.0015545410569757223,
+    0.0006281731184571981,
+    4.946246079384764e-08
+  ],
+  "results": [
+    {
+      "condition": "aucune_projection_raw_finetune",
+      "bit_acc_before": 1.0,
+      "bit_acc_after": 0.896240234375,
+      "bit_acc_delta": -0.103759765625,
+      "proxy_loss_before": 0.005784280132502317,
+      "proxy_loss_after": 0.004283503163605928
+    },
+    {
+      "condition": "projection_aleatoire_actuel_ciphermark",
+      "bit_acc_before": 1.0,
+      "bit_acc_after": 1.0,
+      "bit_acc_delta": 0.0,
+      "proxy_loss_before": 0.005784280132502317,
+      "proxy_loss_after": 0.00570743577554822
+    },
+    {
+      "condition": "projection_hessien_sse_jamais_teste",
+      "bit_acc_before": 1.0,
+      "bit_acc_after": 0.91748046875,
+      "bit_acc_delta": -0.08251953125,
+      "proxy_loss_before": 0.005784280132502317,
+      "proxy_loss_after": 0.005089516285806894
+    }
+  ]
+}

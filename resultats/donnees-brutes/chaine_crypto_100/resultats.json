@@ -1,0 +1,2007 @@
+{
+  "famille": "diffusion",
+  "generateur": "mit-han-lab/dc-ae-f64c128-in-1.0-uvit-h-in-512px-train2000k",
+  "conditionneur": "/workspace/runs/phaseD512_degele/checkpoint.pt",
+  "resultats": [
+    {
+      "famille": "diffusion",
+      "classe": 0,
+      "nom": "classe 0",
+      "omega_hex": "a0960270c3210ac1",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 25.206435470047488,
+      "secondes": 3.0,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 0
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 10,
+      "nom": "classe 10",
+      "omega_hex": "767ae13fe0a39ed7",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.432144919958297,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 1
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 20,
+      "nom": "classe 20",
+      "omega_hex": "47431b52fb0c7da6",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 26.141679374088863,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 2
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 30,
+      "nom": "classe 30",
+      "omega_hex": "0883a6b931b81647",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 21.87455199090732,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 3
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 40,
+      "nom": "classe 40",
+      "omega_hex": "ef5404e09a75f9f8",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 22.436288826453076,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 4
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 50,
+      "nom": "classe 50",
+      "omega_hex": "ab42af9f3502c42f",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 24.44954721113719,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 5
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 60,
+      "nom": "classe 60",
+      "omega_hex": "65c66ddd3fe3b11e",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.7268740806067,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 6
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 70,
+      "nom": "classe 70",
+      "omega_hex": "887b3b6eda9bfc99",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 25.63318288922914,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 7
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 80,
+      "nom": "classe 80",
+      "omega_hex": "b28e2fcb1e202da3",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.68253526558353,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 8
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 90,
+      "nom": "classe 90",
+      "omega_hex": "abd47494c7aa6eba",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 21.915440832791656,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 9
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 100,
+      "nom": "classe 100",
+      "omega_hex": "8a29294af5b4146e",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 25.12739036520463,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 10
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 110,
+      "nom": "classe 110",
+      "omega_hex": "1de4666d468ced74",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 23.593623359639466,
+      "secondes": 3.0,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 11
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 120,
+      "nom": "classe 120",
+      "omega_hex": "3a88936deff32a43",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 27.30862964567933,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 12
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 130,
+      "nom": "classe 130",
+      "omega_hex": "01797277497a39ae",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.93686206497388,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 13
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 140,
+      "nom": "classe 140",
+      "omega_hex": "bc4eab07261d863c",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.453162017130534,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 14
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 150,
+      "nom": "classe 150",
+      "omega_hex": "dd1a6e8eac39a881",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.695795448953884,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 15
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 160,
+      "nom": "classe 160",
+      "omega_hex": "a4da468741443b55",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 24.78571619225687,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 16
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 170,
+      "nom": "classe 170",
+      "omega_hex": "a1e9ade27268ce65",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.87143934771517,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 17
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 180,
+      "nom": "classe 180",
+      "omega_hex": "d768cd9ff627dc23",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.580678277715954,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 18
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 190,
+      "nom": "classe 190",
+      "omega_hex": "f2d9c99313f9639f",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.770466373312495,
+      "secondes": 2.7,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 19
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 200,
+      "nom": "classe 200",
+      "omega_hex": "a8fd5690a4721791",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 26.433441890012723,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 20
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 210,
+      "nom": "classe 210",
+      "omega_hex": "6c2bf0f3a2e51dca",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 25.526829705558264,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 21
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 220,
+      "nom": "classe 220",
+      "omega_hex": "9963280d1747ff96",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 23.473819406175842,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 22
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 230,
+      "nom": "classe 230",
+      "omega_hex": "cff9d9d003c20004",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 22.75890541225126,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 23
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 240,
+      "nom": "classe 240",
+      "omega_hex": "fc168de45dad63f1",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 23.629270089415094,
+      "secondes": 2.7,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 24
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 250,
+      "nom": "classe 250",
+      "omega_hex": "68fd2cb481c98104",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 28.468010307035108,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 25
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 260,
+      "nom": "classe 260",
+      "omega_hex": "d71236acb901bab2",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 22.033067214862918,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 26
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 270,
+      "nom": "classe 270",
+      "omega_hex": "eb10ca854961d0f4",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 26.41587922559253,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 27
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 280,
+      "nom": "classe 280",
+      "omega_hex": "05ff17f53bbf6ae2",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.66705516496908,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 28
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 290,
+      "nom": "classe 290",
+      "omega_hex": "f30867350b3ea8e1",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 23.079185274197876,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 29
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 300,
+      "nom": "classe 300",
+      "omega_hex": "7448ada85492f109",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.140633553106507,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 30
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 310,
+      "nom": "classe 310",
+      "omega_hex": "96b59eaed3cbc3ac",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 28.241011381409717,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 31
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 320,
+      "nom": "classe 320",
+      "omega_hex": "559587cd990beccc",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 22.789256043953976,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 32
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 330,
+      "nom": "classe 330",
+      "omega_hex": "b544f8f71aba4424",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 22.613356454027045,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 33
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 340,
+      "nom": "classe 340",
+      "omega_hex": "5823f1f93ca2c0fa",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 22.23351853798608,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 34
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 350,
+      "nom": "classe 350",
+      "omega_hex": "a85b76ece16b0034",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 24.01207103241561,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 35
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 360,
+      "nom": "classe 360",
+      "omega_hex": "0d09f8df29b94b4c",
+      "erreurs_omega": 6,
+      "nbits": 64,
+      "p_valeur": 4.514509480222497e-12,
+      "psnr_vs_sans_omega": 26.189466175636085,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 6,
+        "p_valeur": 4.514509480222497e-12,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 36
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 370,
+      "nom": "classe 370",
+      "omega_hex": "3d71284645acd9ec",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 26.810993666151802,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 37
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 380,
+      "nom": "classe 380",
+      "omega_hex": "7960fcd8ab8de863",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 26.840083229188068,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 38
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 390,
+      "nom": "classe 390",
+      "omega_hex": "df86d9b75ed775c0",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 22.743115290875767,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 39
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 400,
+      "nom": "classe 400",
+      "omega_hex": "b93e983146aa4518",
+      "erreurs_omega": 9,
+      "nbits": 64,
+      "p_valeur": 1.7711116900875448e-09,
+      "psnr_vs_sans_omega": 25.660943667436836,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 9,
+        "p_valeur": 1.7711116900875448e-09,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 40
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 410,
+      "nom": "classe 410",
+      "omega_hex": "08e302cb19943a1c",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 22.9667600223704,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 41
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 420,
+      "nom": "classe 420",
+      "omega_hex": "d6eea71adb64775a",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.286585256683026,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 42
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 430,
+      "nom": "classe 430",
+      "omega_hex": "8be6867cf39e0a14",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 23.558511875185147,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 43
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 440,
+      "nom": "classe 440",
+      "omega_hex": "ba5f0e359b74d81c",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 22.28271640549753,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 44
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 450,
+      "nom": "classe 450",
+      "omega_hex": "3e83ad3269dd860e",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.80002757636193,
+      "secondes": 2.3,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 45
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 460,
+      "nom": "classe 460",
+      "omega_hex": "d10d3fdcd092f108",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.74237786853325,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 46
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 470,
+      "nom": "classe 470",
+      "omega_hex": "ce67ebb8c279197c",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 27.67193633531988,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 47
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 480,
+      "nom": "classe 480",
+      "omega_hex": "579b260f763ee538",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.509784281164386,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 48
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 490,
+      "nom": "classe 490",
+      "omega_hex": "45f00eee5b8e269e",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 21.26967788560789,
+      "secondes": 2.3,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 49
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 500,
+      "nom": "classe 500",
+      "omega_hex": "67877ac95626432b",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 23.92831833221503,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 50
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 510,
+      "nom": "classe 510",
+      "omega_hex": "65bdb30e8a6dfd53",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 23.721398415814917,
+      "secondes": 2.3,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 51
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 520,
+      "nom": "classe 520",
+      "omega_hex": "a393d783a1e24460",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 24.20086480069092,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 52
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 530,
+      "nom": "classe 530",
+      "omega_hex": "195246a09cd33d95",
+      "erreurs_omega": 7,
+      "nbits": 64,
+      "p_valeur": 3.819070672770122e-11,
+      "psnr_vs_sans_omega": 27.362582528669694,
+      "secondes": 2.3,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 7,
+        "p_valeur": 3.819070672770122e-11,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 53
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 540,
+      "nom": "classe 540",
+      "omega_hex": "98932a8ad7c53028",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 25.535100147588075,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 54
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 550,
+      "nom": "classe 550",
+      "omega_hex": "5c9a2dc470feb729",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.052013261734526,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 55
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 560,
+      "nom": "classe 560",
+      "omega_hex": "89dadd34c6e63978",
+      "erreurs_omega": 7,
+      "nbits": 64,
+      "p_valeur": 3.819070672770122e-11,
+      "psnr_vs_sans_omega": 21.59834140825161,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 7,
+        "p_valeur": 3.819070672770122e-11,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 56
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 570,
+      "nom": "classe 570",
+      "omega_hex": "31236516eed023cf",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 26.174493865351636,
+      "secondes": 2.3,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 57
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 580,
+      "nom": "classe 580",
+      "omega_hex": "88508c37d7760971",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 21.553695902118296,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 58
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 590,
+      "nom": "classe 590",
+      "omega_hex": "7c10a7933b228a39",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.136090711740525,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 59
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 600,
+      "nom": "classe 600",
+      "omega_hex": "47473bbf97f0191b",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 26.03953028002957,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 60
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 610,
+      "nom": "classe 610",
+      "omega_hex": "c1d67ab3da3cb6af",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 26.863922091051613,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 61
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 620,
+      "nom": "classe 620",
+      "omega_hex": "b2e14a915506f305",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 23.04422390895787,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 62
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 630,
+      "nom": "classe 630",
+      "omega_hex": "592918077c922cb4",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 26.97808842818104,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 63
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 640,
+      "nom": "classe 640",
+      "omega_hex": "bc0702b4dad61d91",
+      "erreurs_omega": 6,
+      "nbits": 64,
+      "p_valeur": 4.514509480222497e-12,
+      "psnr_vs_sans_omega": 21.740650765424864,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 6,
+        "p_valeur": 4.514509480222497e-12,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 64
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 650,
+      "nom": "classe 650",
+      "omega_hex": "10a5bdfedf695eea",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 24.711067385865793,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 65
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 660,
+      "nom": "classe 660",
+      "omega_hex": "121ffc2a1f2331b2",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.62070164243121,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 66
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 670,
+      "nom": "classe 670",
+      "omega_hex": "545f07f3eec996b7",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 22.586474210819055,
+      "secondes": 2.6,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 67
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 680,
+      "nom": "classe 680",
+      "omega_hex": "770930640b21224f",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.319994633648566,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 68
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 690,
+      "nom": "classe 690",
+      "omega_hex": "2c10226a220e34cb",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 24.197936398625362,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 69
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 700,
+      "nom": "classe 700",
+      "omega_hex": "b01b9e7583c05c9d",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 27.361582737396198,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 70
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 710,
+      "nom": "classe 710",
+      "omega_hex": "608cc2584e0f4e30",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.58256395728757,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 71
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 720,
+      "nom": "classe 720",
+      "omega_hex": "3b189fcb0bfef136",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 22.150871083642762,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 72
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 730,
+      "nom": "classe 730",
+      "omega_hex": "23fb31b3557c518d",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 22.534777602671006,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 73
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 740,
+      "nom": "classe 740",
+      "omega_hex": "fdb9cd66dad491c8",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.634664790779418,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 74
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 750,
+      "nom": "classe 750",
+      "omega_hex": "b6cb3c4c6b835124",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.715029126310174,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 75
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 760,
+      "nom": "classe 760",
+      "omega_hex": "84ace4849547cbe1",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 28.147976314222586,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 76
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 770,
+      "nom": "classe 770",
+      "omega_hex": "33e1326a42f1f4d9",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.2476035335736,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 77
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 780,
+      "nom": "classe 780",
+      "omega_hex": "437675f94cd6254d",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 24.140141494110352,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 78
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 790,
+      "nom": "classe 790",
+      "omega_hex": "d1e2ec87191fc206",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 23.68817986328527,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 79
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 800,
+      "nom": "classe 800",
+      "omega_hex": "31ca1a79c3f0f38a",
+      "erreurs_omega": 4,
+      "nbits": 64,
+      "p_valeur": 3.68152231790264e-14,
+      "psnr_vs_sans_omega": 22.289921083296814,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 4,
+        "p_valeur": 3.68152231790264e-14,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 80
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 810,
+      "nom": "classe 810",
+      "omega_hex": "4a8f6349ebe37377",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 23.630727444382416,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 81
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 820,
+      "nom": "classe 820",
+      "omega_hex": "55b67a5f27f51a6d",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.205289474964026,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 82
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 830,
+      "nom": "classe 830",
+      "omega_hex": "28ca3c9302e4d005",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.513408501761376,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 83
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 840,
+      "nom": "classe 840",
+      "omega_hex": "8ab365394159b8dd",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 26.971584630555448,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 84
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 850,
+      "nom": "classe 850",
+      "omega_hex": "250918ce140b2251",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 24.56302072802464,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 85
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 860,
+      "nom": "classe 860",
+      "omega_hex": "3a6b4cff32c28251",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 22.2586186009585,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 86
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 870,
+      "nom": "classe 870",
+      "omega_hex": "5511cc3f3344214b",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 22.814401380722696,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 87
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 880,
+      "nom": "classe 880",
+      "omega_hex": "9ae5746afebaa2b2",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 24.725763365102345,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 88
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 890,
+      "nom": "classe 890",
+      "omega_hex": "90018ce6e1bf51c5",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 23.25254300054273,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 89
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 900,
+      "nom": "classe 900",
+      "omega_hex": "e0ff229d0d8c681d",
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "p_valeur": 2.3714212017689223e-15,
+      "psnr_vs_sans_omega": 25.214548557808723,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 3,
+        "p_valeur": 2.3714212017689223e-15,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 90
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 910,
+      "nom": "classe 910",
+      "omega_hex": "5668e8621d05ea1e",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 27.353053388047456,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 91
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 920,
+      "nom": "classe 920",
+      "omega_hex": "6d672ec48a64194b",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 25.643283896405734,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 92
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 930,
+      "nom": "classe 930",
+      "omega_hex": "e9444ea5ff0cd335",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 25.97063857117414,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 93
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 940,
+      "nom": "classe 940",
+      "omega_hex": "2e455614198db5be",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 23.565780757356755,
+      "secondes": 2.5,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 94
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 950,
+      "nom": "classe 950",
+      "omega_hex": "90deed93b4517bb4",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 25.188275985259672,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 95
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 960,
+      "nom": "classe 960",
+      "omega_hex": "040b82b202e2e21d",
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "p_valeur": 1.1281123604711716e-16,
+      "psnr_vs_sans_omega": 27.093241695765123,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 2,
+        "p_valeur": 1.1281123604711716e-16,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 96
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 970,
+      "nom": "classe 970",
+      "omega_hex": "7eed465338523ef0",
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "p_valeur": 3.523657060577878e-18,
+      "psnr_vs_sans_omega": 24.03173002484898,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 1,
+        "p_valeur": 3.523657060577878e-18,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 97
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 980,
+      "nom": "volcan",
+      "omega_hex": "baeb0c81be2e57ed",
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "p_valeur": 5.42101086242753e-20,
+      "psnr_vs_sans_omega": 26.06141232779107,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 0,
+        "p_valeur": 5.42101086242753e-20,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 98
+      }
+    },
+    {
+      "famille": "diffusion",
+      "classe": 990,
+      "nom": "classe 990",
+      "omega_hex": "3e7812cffdfa6ddb",
+      "erreurs_omega": 5,
+      "nbits": 64,
+      "p_valeur": 4.5014084690611603e-13,
+      "psnr_vs_sans_omega": 24.086006807242683,
+      "secondes": 2.4,
+      "crypto": {
+        "utilisateur": "createur-0042",
+        "d_tag": 5,
+        "p_valeur": 4.5014084690611603e-13,
+        "d_hash": 0,
+        "tau": 69,
+        "contenu_ok": true,
+        "nonce": 99
+      }
+    }
+  ]
+}

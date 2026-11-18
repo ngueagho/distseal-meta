@@ -1,0 +1,87 @@
+{
+  "n": 5000000,
+  "n_bits": 96,
+  "prg_backend": "chacha20",
+  "unicite": {
+    "n_omega_distincts": 5000000,
+    "collisions_omega": 0,
+    "n_nonces_distincts": 5000000,
+    "collisions_nonce": 0,
+    "collisions_attendues_hasard": 1.5777214948976615e-16
+  },
+  "separation": {
+    "hamming_moyen": 47.99900436401367,
+    "hamming_min": 23,
+    "hamming_max": 74,
+    "n_echantillon": 6000,
+    "attendu": 48.0
+  },
+  "avalanche": {
+    "hash_1bit": {
+      "n": 20000,
+      "moyenne": 47.98395,
+      "ecart_type": 4.892748961218019,
+      "min": 29,
+      "max": 67,
+      "attendu_moyenne": 48.0,
+      "attendu_ecart_type": 4.898979485566356
+    },
+    "nonce_voisin": {
+      "n": 20000,
+      "moyenne": 48.00695,
+      "ecart_type": 4.874135994973878,
+      "min": 30,
+      "max": 69,
+      "attendu_moyenne": 48.0,
+      "attendu_ecart_type": 4.898979485566356
+    },
+    "cle_1bit": {
+      "n": 5000,
+      "moyenne": 47.9474,
+      "ecart_type": 4.979179976662824,
+      "min": 30,
+      "max": 67,
+      "attendu_moyenne": 48.0,
+      "attendu_ecart_type": 4.898979485566356
+    }
+  },
+  "uniformite": {
+    "frequence_min": 0.499515,
+    "frequence_max": 0.5004594,
+    "frequence_moyenne": 0.4999874979166667,
+    "chi2": 100.89944559999999,
+    "ddl": 96,
+    "chi2_par_ddl": 1.0510358916666667,
+    "monobit_s_n": 0.5478138445980836,
+    "monobit_p_valeur": 0.5838197313277786
+  },
+  "identite": {
+    "n_users": 20000,
+    "cles_distinctes": 20000,
+    "collisions_cles": 0,
+    "omega_distincts": 20000,
+    "hamming_moyen": 47.99982833862305,
+    "hamming_min": 22,
+    "hamming_max": 76,
+    "n_croises": 500,
+    "faux_acceptes": 0,
+    "seuil_bits": 24
+  },
+  "determinisme": {
+    "n": 20000,
+    "reproductions_exactes": 20000
+  },
+  "independance": {
+    "n": 20000,
+    "correlation_max": 0.02534160789568307,
+    "correlation_moyenne": 0.005652350192943445,
+    "seuil_bruit_2sigma": 0.01414213562373095
+  },
+  "registre": {
+    "n_entrees": 20000,
+    "rejeu_detecte": true,
+    "h_ref_relus_intacts": 5000,
+    "h_ref_verifies": 5000
+  },
+  "echecs": []
+}
