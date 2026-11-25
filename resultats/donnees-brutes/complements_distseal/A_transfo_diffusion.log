@@ -1,0 +1,64 @@
+/usr/local/lib/python3.13/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[complements] 11:03:48 canal diffusion : 9 conditions
+[volet-B] 11:03:50 extracteur : 64 bits, entraine en 256 px
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/usr/local/lib/python3.13/dist-packages/torch/utils/data/dataloader.py:431: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  self.check_worker_number_rationality()
+/content/code-memoire/deps/efficientvit/diffusioncore/models/uvit.py:249: RuntimeWarning: divide by zero encountered in divide
+  self.snr = self.cum_alphas / self.cum_betas
+warning: dist not init
+0
+len(val_dataset)=50000
+len(test_dataset)=50000
+[volet-B] 11:05:56 diffusion : 512 px, latent (1, 128, 8, 8)
+[distseal] 11:05:56 etages conditionnables : [2048, 1024, 1024, 512, 512, 256]
+[distseal] 11:06:21 conditionneur charge : 18 tenseurs, pas 20000
+[distseal] 11:06:21 decodeur affine restaure : 224/224 tenseurs modifies
+[volet-B] 11:06:21 9 conditions : aucune, retournement_h, teinte_-0.1, teinte_+0.1, saturation_0.5, saturation_1.5, niveaux_de_gris, combinee_distseal, combinee_sans_recadrage
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+[distseal] 11:06:23 protocole crypto : cle derivee de "createur-0042", hash DINOv2 256 bits, tau=69, registre /content/code-memoire/runs/A_transfo_diffusion/registre.sqlite
+[volet-B] 11:06:23 1000 traitements sur 1025 images distinctes
+[volet-B] 11:06:28   4/1000  0.8 img/s  reste ~20 min
+[volet-B] 11:07:17   84/1000  1.5 img/s  reste ~10 min
+[volet-B] 11:08:06   164/1000  1.6 img/s  reste ~9 min
+[volet-B] 11:08:55   244/1000  1.6 img/s  reste ~8 min
+[volet-B] 11:09:44   324/1000  1.6 img/s  reste ~7 min
+[volet-B] 11:10:33   404/1000  1.6 img/s  reste ~6 min
+[volet-B] 11:11:22   484/1000  1.6 img/s  reste ~5 min
+[volet-B] 11:12:11   564/1000  1.6 img/s  reste ~4 min
+[volet-B] 11:13:00   644/1000  1.6 img/s  reste ~4 min
+[volet-B] 11:13:48   724/1000  1.6 img/s  reste ~3 min
+[volet-B] 11:14:37   804/1000  1.6 img/s  reste ~2 min
+[volet-B] 11:15:26   884/1000  1.6 img/s  reste ~1 min
+[volet-B] 11:16:15   964/1000  1.6 img/s  reste ~0 min
+[volet-B] 11:16:37   1000/1000  1.6 img/s  reste ~0 min
+
+======================================================================================
+VOLET B -- decodeur conditionne, famille diffusion, source encode
+======================================================================================
+attaque                      n   bit_acc  err moy    p<1e-6  Omega OK   hash OK     AUTH.
+--------------------------------------------------------------------------------------
+aucune                    1000    0.9746     1.62    100.0%     99.0%    100.0%     99.0%
+retournement_h            1000    0.5262    30.32      0.0%      0.0%    100.0%      0.0%
+teinte_-0.1               1000    0.9731     1.72    100.0%     99.2%    100.0%     99.2%
+teinte_+0.1               1000    0.9724     1.76    100.0%     98.8%    100.0%     98.8%
+saturation_0.5            1000    0.9724     1.76    100.0%     99.1%    100.0%     99.1%
+saturation_1.5            1000    0.9707     1.88     99.7%     97.8%    100.0%     97.8%
+niveaux_de_gris           1000    0.9689     1.99    100.0%     98.4%     93.5%     92.1%
+combinee_distseal         1000    0.5051    31.68      0.0%      0.0%     95.3%      0.0%
+combinee_sans_recadrage    1000    0.9210     5.06     99.9%     76.8%    100.0%     76.8%
+--------------------------------------------------------------------------------------
+  1000 traitements sur 1025 images distinctes, 9 conditions, 10.2 min
+  registre : /content/code-memoire/runs/A_transfo_diffusion/registre.sqlite
+  qualite pairee : PSNR=24.88 dB, SSIM=0.8200
+  decodage nu : 162.35 ms/image
+  decodage WAF: 163.89 ms/image
+======================================================================================
+[volet-B] 11:16:37 bilan ecrit dans /content/code-memoire/runs/A_transfo_diffusion/volet_b_diffusion_encode.json

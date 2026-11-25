@@ -1,0 +1,27 @@
+/usr/local/lib/python3.13/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/usr/local/lib/python3.13/dist-packages/torch/utils/data/dataloader.py:431: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  self.check_worker_number_rationality()
+/content/code-memoire/deps/efficientvit/diffusioncore/models/uvit.py:249: RuntimeWarning: divide by zero encountered in divide
+  self.snr = self.cum_alphas / self.cum_betas
+warning: dist not init
+0
+len(val_dataset)=50000
+len(test_dataset)=50000
+[distseal] 10:47:05 etages conditionnables : [2048, 1024, 1024, 512, 512, 256]
+[distseal] 10:47:09 conditionneur charge : 18 tenseurs, pas 20000
+[distseal] 10:47:09 decodeur affine restaure : 224/224 tenseurs modifies
+[complements] 10:48:30 avant LoRA : {'bit_acc': 0.973515625, 'detection': 1.0, 'omega_accepte': 0.995, 'psnr_vs_image_reelle': 21.61897282600403}
+[complements] 10:48:30 LoRA rang 8 sur 69 couches, 3.02 M parametres entraines
+[complements] 10:49:23 apres injection, avant entrainement : {'bit_acc': 0.973515625, 'detection': 1.0, 'omega_accepte': 0.995, 'psnr_vs_image_reelle': 21.61897282600403}
+/content/code-memoire/scripts/ciphermark/eval_complements_distseal.py:346: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = torch.cuda.amp.GradScaler()
+/content/code-memoire/scripts/ciphermark/eval_complements_distseal.py:365: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  r = {"pas": pas, "perte": float(perte), **evalue()}
+[complements] 10:59:52 pas 500/2500  {'pas': 500, 'perte': 0.00874648429453373, 'bit_acc': 0.504296875, 'detection': 0.0, 'omega_accepte': 0.0, 'psnr_vs_image_reelle': 27.013770666122436}  (10.5 min)
+[complements] 11:10:18 pas 1000/2500  {'pas': 1000, 'perte': 0.008105700835585594, 'bit_acc': 0.5028125, 'detection': 0.0, 'omega_accepte': 0.0, 'psnr_vs_image_reelle': 27.058001022338868}  (20.9 min)
+[complements] 11:20:46 pas 1500/2500  {'pas': 1500, 'perte': 0.0076646036468446255, 'bit_acc': 0.5028125, 'detection': 0.0, 'omega_accepte': 0.0, 'psnr_vs_image_reelle': 26.988213481903077}  (31.4 min)
+[complements] 11:31:13 pas 2000/2500  {'pas': 2000, 'perte': 0.007206832058727741, 'bit_acc': 0.5022656249999999, 'detection': 0.0, 'omega_accepte': 0.0, 'psnr_vs_image_reelle': 26.915936393737795}  (41.8 min)
+[complements] 11:41:42 pas 2500/2500  {'pas': 2500, 'perte': 0.006993965711444616, 'bit_acc': 0.5017968749999999, 'detection': 0.0, 'omega_accepte': 0.0, 'psnr_vs_image_reelle': 26.86548610687256}  (52.3 min)

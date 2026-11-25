@@ -1,0 +1,51 @@
+/usr/local/lib/python3.13/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[complements] 10:59:00 canal pixel : 9 conditions
+[eval] 10:59:00 device=cuda  checkpoint=/content/code-memoire/runs/ciphermark_64bits_checkpoint.pth
+[eval] 10:59:03 scaling_w rejoue a l'epoque 1200 : 0.5 (statique) -> 0.1152 (effectif)
+[eval] 10:59:03 Wam charge : nbits=64, img_size=256, scaling_w effectif=0.1152
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+Downloading: "https://github.com/facebookresearch/dinov2/zipball/main" to /root/.cache/torch/hub/main.zip
+Downloading: "https://dl.fbaipublicfiles.com/dinov2/dinov2_vits14/dinov2_vits14_pretrain.pth" to /root/.cache/torch/hub/checkpoints/dinov2_vits14_pretrain.pth
+
+  0%|          | 0.00/84.2M [00:00<?, ?B/s]
+ 20%|██        | 16.9M/84.2M [00:00<00:00, 174MB/s]
+ 54%|█████▍    | 45.6M/84.2M [00:00<00:00, 248MB/s]
+ 86%|████████▌ | 72.2M/84.2M [00:00<00:00, 262MB/s]
+100%|██████████| 84.2M/84.2M [00:00<00:00, 260MB/s]
+[eval] 10:59:06 PHash backbone : DINOv2-small REEL
+[eval] 10:59:06 1000 traitements sur 5025 images distinctes depuis /content/corpus-coco-5000/toutes
+[eval] 10:59:06 9 conditions a evaluer
+[eval] 10:59:49 lot 10/63  3.7 img/s  reste ~4 min
+[eval] 11:00:30 lot 20/63  3.8 img/s  reste ~3 min
+[eval] 11:01:13 lot 30/63  3.8 img/s  reste ~2 min
+[eval] 11:01:56 lot 40/63  3.8 img/s  reste ~2 min
+[eval] 11:02:39 lot 50/63  3.8 img/s  reste ~1 min
+[eval] 11:03:21 lot 60/63  3.8 img/s  reste ~0 min
+[eval] 11:03:32 lot 63/63  3.8 img/s  reste ~0 min
+
+================================================================================================
+CipherMark -- recuperation sur 1000 images, nbits=64
+qualite du filigrane : PSNR 22.49 dB  SSIM 0.942  |  point fixe : 3.00 iters, 0% converges
+================================================================================================
+attaque           bit_acc  hash ok      BER    AUTH      p med
+------------------------------------------------------------------------------------------------
+aucune             0.9994    100%   0.0006   100%   5.42e-20
+retournement_h     0.5329     18%   0.4671     0%   3.54e-01
+teinte_-0.1        0.9995     93%   0.0005   100%   5.42e-20
+teinte_+0.1        0.9995     94%   0.0005   100%   5.42e-20
+saturation_0.5     0.9995     78%   0.0005   100%   5.42e-20
+saturation_1.5     0.9992     98%   0.0008   100%   5.42e-20
+niveaux_de_gris    0.9995      4%   0.0005    75%   5.42e-20
+combinee_distseal   0.5117      0%   0.4883     0%   4.50e-01
+combinee_sans_recadrage   0.9986     33%   0.0014    99%   5.42e-20
+================================================================================================
+bit_acc = fraction des bits d'Omega relus correctement
+hash ok = fraction des images dont le hash corrige redonne la reference
+BER     = ecart final au tag recalcule (c'est LUI qui decide du verdict)
+[eval] 11:03:32 resultats ecrits dans /content/code-memoire/runs/A_transfo_pixel.json

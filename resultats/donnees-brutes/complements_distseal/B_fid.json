@@ -1,0 +1,13 @@
+{
+  "n_images": 500,
+  "generateur": "mit-han-lab/dc-ae-f64c128-in-1.0-uvit-h-in-512px-train2000k",
+  "cfg_scale": 4.0,
+  "omega": "aleatoire, un par image",
+  "reference": "FID relatif, memes latents",
+  "fid": {
+    "origine_vs_tatoue": 70.46290588378906,
+    "origine_vs_affine_sans_omega": 66.83252716064453,
+    "affine_sans_omega_vs_tatoue": 26.135095596313477
+  },
+  "bit_acc_tatoue": 0.97234375
+}

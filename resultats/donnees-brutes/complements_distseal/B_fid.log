@@ -1,0 +1,41 @@
+/usr/local/lib/python3.13/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/usr/local/lib/python3.13/dist-packages/torch/utils/data/dataloader.py:431: UserWarning: This DataLoader will create 8 worker processes in total. Our suggested max number of worker in current system is 2, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  self.check_worker_number_rationality()
+/content/code-memoire/deps/efficientvit/diffusioncore/models/uvit.py:249: RuntimeWarning: divide by zero encountered in divide
+  self.snr = self.cum_alphas / self.cum_betas
+warning: dist not init
+0
+len(val_dataset)=50000
+len(test_dataset)=50000
+[distseal] 16:23:32 etages conditionnables : [2048, 1024, 1024, 512, 512, 256]
+[distseal] 16:23:37 conditionneur charge : 18 tenseurs, pas 20000
+[distseal] 16:23:37 decodeur affine restaure : 224/224 tenseurs modifies
+Downloading: "https://github.com/toshas/torch-fidelity/releases/download/v0.2.0/weights-inception-2015-12-05-6726825d.pth" to /root/.cache/torch/hub/checkpoints/weights-inception-2015-12-05-6726825d.pth
+
+  0%|          | 0.00/91.2M [00:00<?, ?B/s]
+ 22%|██▏       | 19.9M/91.2M [00:00<00:00, 208MB/s]
+ 53%|█████▎    | 48.1M/91.2M [00:00<00:00, 259MB/s]
+ 80%|████████  | 73.1M/91.2M [00:00<00:00, 261MB/s]
+100%|██████████| 91.2M/91.2M [00:00<00:00, 247MB/s]
+/usr/local/lib/python3.13/dist-packages/torch/_dynamo/eval_frame.py:1548: UserWarning: torch.utils.checkpoint: the use_reentrant parameter should be passed explicitly. Starting in PyTorch 2.9, calling checkpoint without use_reentrant will raise an exception. use_reentrant=False is recommended, but if you need to preserve the current default behavior, you can pass use_reentrant=True. Refer to docs for more details on the differences between the two variants.
+  return fn(*args, **kwargs)
+/usr/local/lib/python3.13/dist-packages/torch/utils/checkpoint.py:242: UserWarning: None of the inputs have requires_grad=True. Gradients will be None
+  check_backward_validity(args)
+[complements] 16:31:45   200/500  reste ~12 min
+[complements] 16:39:53   400/500  reste ~4 min
+[complements] 16:44:00   500/500  reste ~0 min
+[complements] 16:44:04 {
+  "n_images": 500,
+  "generateur": "mit-han-lab/dc-ae-f64c128-in-1.0-uvit-h-in-512px-train2000k",
+  "cfg_scale": 4.0,
+  "omega": "aleatoire, un par image",
+  "reference": "FID relatif, memes latents",
+  "fid": {
+    "origine_vs_tatoue": 70.46290588378906,
+    "origine_vs_affine_sans_omega": 66.83252716064453,
+    "affine_sans_omega_vs_tatoue": 26.135095596313477
+  },
+  "bit_acc_tatoue": 0.97234375
+}

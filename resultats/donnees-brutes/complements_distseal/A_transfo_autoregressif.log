@@ -1,0 +1,47 @@
+/usr/local/lib/python3.13/dist-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+[complements] 11:16:59 canal autoregressif : 9 conditions
+[volet-B] 11:17:02 extracteur : 64 bits, entraine en 256 px
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[volet-B] 11:17:07 autoregressif : 256 px, latent (1, 256, 16, 16)
+[distseal] 11:17:07 etages conditionnables : [512, 128, 3]
+[distseal] 11:17:09 conditionneur charge : 12 tenseurs, pas 60000
+[distseal] 11:17:09 decodeur affine restaure : 88/88 tenseurs modifies
+[volet-B] 11:17:09 9 conditions : aucune, retournement_h, teinte_-0.1, teinte_+0.1, saturation_0.5, saturation_1.5, niveaux_de_gris, combinee_distseal, combinee_sans_recadrage
+Using cache found in /root/.cache/torch/hub/facebookresearch_dinov2_main
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/root/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")
+[distseal] 11:17:10 protocole crypto : cle derivee de "createur-0042", hash DINOv2 256 bits, tau=69, registre /content/code-memoire/runs/A_transfo_autoregressif/registre.sqlite
+[volet-B] 11:17:10 1000 traitements sur 5025 images distinctes
+[volet-B] 11:17:14   16/1000  4.2 img/s  reste ~4 min
+[volet-B] 11:18:16   336/1000  5.1 img/s  reste ~2 min
+[volet-B] 11:19:17   656/1000  5.2 img/s  reste ~1 min
+[volet-B] 11:20:18   976/1000  5.2 img/s  reste ~0 min
+[volet-B] 11:20:23   1000/1000  5.2 img/s  reste ~0 min
+
+======================================================================================
+VOLET B -- decodeur conditionne, famille autoregressif, source encode
+======================================================================================
+attaque                      n   bit_acc  err moy    p<1e-6  Omega OK   hash OK     AUTH.
+--------------------------------------------------------------------------------------
+aucune                    1000    0.8773     7.86     96.6%     34.4%    100.0%     34.4%
+retournement_h            1000    0.5156    31.00      0.0%      0.0%    100.0%      0.0%
+teinte_-0.1               1000    0.8392    10.29     83.5%     12.1%    100.0%     12.1%
+teinte_+0.1               1000    0.8366    10.46     82.7%     10.5%    100.0%     10.5%
+saturation_0.5            1000    0.8590     9.02     92.3%     21.5%    100.0%     21.5%
+saturation_1.5            1000    0.8687     8.40     94.0%     28.4%    100.0%     28.4%
+niveaux_de_gris           1000    0.8195    11.55     74.3%      4.1%     88.0%      3.6%
+combinee_distseal         1000    0.5037    31.76      0.0%      0.0%     84.9%      0.0%
+combinee_sans_recadrage    1000    0.7256    17.56     11.2%      0.0%    100.0%      0.0%
+--------------------------------------------------------------------------------------
+  1000 traitements sur 5025 images distinctes, 9 conditions, 3.2 min
+  registre : /content/code-memoire/runs/A_transfo_autoregressif/registre.sqlite
+  qualite pairee : PSNR=23.94 dB, SSIM=0.9305
+  decodage nu : 24.23 ms/image
+  decodage WAF: 24.99 ms/image
+======================================================================================
+[volet-B] 11:20:23 bilan ecrit dans /content/code-memoire/runs/A_transfo_autoregressif/volet_b_autoregressif_encode.json

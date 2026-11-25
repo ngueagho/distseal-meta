@@ -1,0 +1,29 @@
+{
+  "omega": "aleatoire",
+  "resultats": [
+    {
+      "classe": 207,
+      "erreurs_omega": 0,
+      "nbits": 64,
+      "psnr_vs_sans_omega": 25.73719463474312
+    },
+    {
+      "classe": 388,
+      "erreurs_omega": 2,
+      "nbits": 64,
+      "psnr_vs_sans_omega": 24.929846112951317
+    },
+    {
+      "classe": 417,
+      "erreurs_omega": 3,
+      "nbits": 64,
+      "psnr_vs_sans_omega": 23.05640413688545
+    },
+    {
+      "classe": 979,
+      "erreurs_omega": 1,
+      "nbits": 64,
+      "psnr_vs_sans_omega": 24.878469334980842
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "lr": 1e-05,
+  "rang": 8,
+  "n_train": 50,
+  "n_eval": 200,
+  "pas_total": 2500,
+  "avant_lora": {
+    "bit_acc": 0.973515625,
+    "detection": 1.0,
+    "omega_accepte": 0.995,
+    "psnr_vs_image_reelle": 21.61897282600403
+  },
+  "courbe": [
+    {
+      "pas": 0,
+      "bit_acc": 0.973515625,
+      "detection": 1.0,
+      "omega_accepte": 0.995,
+      "psnr_vs_image_reelle": 21.61897282600403
+    },
+    {
+      "pas": 500,
+      "perte": 0.011563383042812347,
+      "bit_acc": 0.5313281249999999,
+      "detection": 0.0,
+      "omega_accepte": 0.0,
+      "psnr_vs_image_reelle": 25.73735538482666
+    },
+    {
+      "pas": 1000,
+      "perte": 0.010058097541332245,
+      "bit_acc": 0.514375,
+      "detection": 0.0,
+      "omega_accepte": 0.0,
+      "psnr_vs_image_reelle": 26.53804478645325
+    },
+    {
+      "pas": 1500,
+      "perte": 0.009508663788437843,
+      "bit_acc": 0.508984375,
+      "detection": 0.0,
+      "omega_accepte": 0.0,
+      "psnr_vs_image_reelle": 26.765987720489502
+    },
+    {
+      "pas": 2000,
+      "perte": 0.009303011000156403,
+      "bit_acc": 0.50640625,
+      "detection": 0.0,
+      "omega_accepte": 0.0,
+      "psnr_vs_image_reelle": 26.902192726135254
+    },
+    {
+      "pas": 2500,
+      "perte": 0.009076947346329689,
+      "bit_acc": 0.505390625,
+      "detection": 0.0,
+      "omega_accepte": 0.0,
+      "psnr_vs_image_reelle": 26.9769211101532
+    }
+  ],
+  "lecture": "stabilite du canal sous reaffinage du decodeur ; Omega reste fourni"
+}

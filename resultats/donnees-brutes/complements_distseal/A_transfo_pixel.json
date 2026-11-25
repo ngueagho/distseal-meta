@@ -1,0 +1,119 @@
+{
+  "n_images": 1000,
+  "nbits": 64,
+  "psnr": 22.486724853515625,
+  "ssim": 0.942299485206604,
+  "fixed_point_iters": 3.0,
+  "resultats": [
+    {
+      "attaque": "aucune",
+      "bit_acc_omega": 0.9994375109672546,
+      "hash_stable": 1.0,
+      "ber": 0.0005625,
+      "taux_authentic": 0.998,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 998,
+        "no_wm": 2
+      }
+    },
+    {
+      "attaque": "retournement_h",
+      "bit_acc_omega": 0.5329062342643738,
+      "hash_stable": 0.176,
+      "ber": 0.46709375,
+      "taux_authentic": 0.0,
+      "p_median": 0.35399037706738545,
+      "verdicts": {
+        "light_edit": 1,
+        "heavy_edit": 147,
+        "no_wm": 852
+      }
+    },
+    {
+      "attaque": "teinte_-0.1",
+      "bit_acc_omega": 0.9994999766349792,
+      "hash_stable": 0.932,
+      "ber": 0.0005,
+      "taux_authentic": 0.996,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 996,
+        "no_wm": 4
+      }
+    },
+    {
+      "attaque": "teinte_+0.1",
+      "bit_acc_omega": 0.9994531273841858,
+      "hash_stable": 0.937,
+      "ber": 0.000546875,
+      "taux_authentic": 0.995,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 995,
+        "no_wm": 5
+      }
+    },
+    {
+      "attaque": "saturation_0.5",
+      "bit_acc_omega": 0.9994531273841858,
+      "hash_stable": 0.779,
+      "ber": 0.000546875,
+      "taux_authentic": 0.996,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 996,
+        "no_wm": 4
+      }
+    },
+    {
+      "attaque": "saturation_1.5",
+      "bit_acc_omega": 0.9992031455039978,
+      "hash_stable": 0.982,
+      "ber": 0.000796875,
+      "taux_authentic": 0.997,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "light_edit": 1,
+        "authentic": 997,
+        "no_wm": 2
+      }
+    },
+    {
+      "attaque": "niveaux_de_gris",
+      "bit_acc_omega": 0.9994531273841858,
+      "hash_stable": 0.04,
+      "ber": 0.000546875,
+      "taux_authentic": 0.751,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 751,
+        "no_wm": 249
+      }
+    },
+    {
+      "attaque": "combinee_distseal",
+      "bit_acc_omega": 0.51171875,
+      "hash_stable": 0.002,
+      "ber": 0.48828125,
+      "taux_authentic": 0.0,
+      "p_median": 0.45032662312602145,
+      "verdicts": {
+        "heavy_edit": 68,
+        "no_wm": 932
+      }
+    },
+    {
+      "attaque": "combinee_sans_recadrage",
+      "bit_acc_omega": 0.9986249804496765,
+      "hash_stable": 0.331,
+      "ber": 0.001375,
+      "taux_authentic": 0.988,
+      "p_median": 5.42101086242753e-20,
+      "verdicts": {
+        "authentic": 988,
+        "no_wm": 12
+      }
+    }
+  ]
+}
