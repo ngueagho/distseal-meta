@@ -267,7 +267,12 @@ def main() -> int:
             if args.source == "genere":
                 etiq = torch.randint(0, 1000, (B,), device=DEVICE)
                 nulle = torch.full((B,), 1000, device=DEVICE)
-                latent = diff.generate(etiq, nulle, 4.0, g).float() / echelle
+                # jamais en float16 : le U-ViT-H y deborde en NaN (T4)
+                with torch.autocast("cuda", dtype=torch.bfloat16,
+                                    enabled=dtype == torch.bfloat16):
+                    latent = diff.generate(etiq, nulle, 4.0, g).float() / echelle
+                if not torch.isfinite(latent).all():
+                    raise SystemExit("latent genere non fini (NaN/inf)")
                 infos_dec = None
             elif args.famille == "diffusion":
                 x0 = charge_lot(lot, taille)

@@ -302,9 +302,15 @@ def main() -> int:
             t0 = time.time()
             etiq = torch.tensor([cl], device=DEVICE)
             nulle = torch.tensor([1000], device=DEVICE)   # classe nulle du CFG
-            with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
+            # Jamais en float16 : le U-ViT-H (entraine en bfloat16) y deborde
+            # en NaN -- sur T4 les images sortaient noires. bfloat16 si la
+            # carte le permet, sinon float32.
+            with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16,
+                                                 enabled=dtype == torch.bfloat16):
                 latent = diff.generate(etiq, nulle, args.cfg_scale, g)
             latent = latent.float() / echelle
+            if not torch.isfinite(latent).all():
+                raise SystemExit("latent genere non fini (NaN/inf) : generation invalide")
             # Le decodage SANS temoin vient en premier : en mode crypto c'est
             # de son hash que nait Omega -- lier le temoin au contenu de la
             # generation exige de connaitre ce contenu avant de le marquer.
